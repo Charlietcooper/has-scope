@@ -1,0 +1,33 @@
+AZI
+
+----
+
+US Digital
+Optical Encoder 
+S2-2048-NT 
+
+PIN OUT
+
+5 CH.B 
+4 +5v
+3 CH. A 
+2 NC
+1 GND 
+
+---------
+
+ALT
+
+----
+
+US Digital
+Optical Encoder 
+S2-2048-NT 
+
+PIN OUT
+
+5 CH.B 
+4 +5v
+3 CH. A 
+2 NC
+1 GND 
