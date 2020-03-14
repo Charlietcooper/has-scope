@@ -1,3 +1,300 @@
+
+Install the project...
+-- Install configuration: "Debug"
+-- Installing: /usr/bin/indiserver
+-- Installing: /usr/lib/x86_64-linux-gnu/libindiclient.a
+-- Installing: /usr/include/libindi/baseclient.h
+-- Installing: /usr/lib/x86_64-linux-gnu/libindidriver.a
+-- Installing: /usr/lib/x86_64-linux-gnu/libindidriver.so.1.8.5
+-- Up-to-date: /usr/lib/x86_64-linux-gnu/libindidriver.so.1
+-- Up-to-date: /usr/lib/x86_64-linux-gnu/libindidriver.so
+-- Installing: /usr/bin/indi_imager_agent
+-- Set runtime path of "/usr/bin/indi_imager_agent" to ""
+-- Installing: /usr/lib/x86_64-linux-gnu/libindilx200.so.1.8.5
+-- Up-to-date: /usr/lib/x86_64-linux-gnu/libindilx200.so.1
+-- Up-to-date: /usr/lib/x86_64-linux-gnu/libindilx200.so
+-- Installing: /usr/include/libindi/mounts/lx200telescope.h
+-- Installing: /usr/include/libindi/mounts/lx200driver.h
+-- Installing: /usr/bin/indi_lx200basic
+-- Set runtime path of "/usr/bin/indi_lx200basic" to ""
+-- Installing: /usr/bin/indi_lx200_TeenAstro
+-- Set runtime path of "/usr/bin/indi_lx200_TeenAstro" to ""
+-- Installing: /usr/bin/indi_lx200generic
+-- Set runtime path of "/usr/bin/indi_lx200generic" to ""
+-- Installing: /usr/bin/indi_celestron_gps
+-- Set runtime path of "/usr/bin/indi_celestron_gps" to ""
+-- Installing: /usr/bin/indi_rainbow_telescope
+-- Set runtime path of "/usr/bin/indi_rainbow_telescope" to ""
+-- Installing: /usr/bin/indi_temma_telescope
+-- Set runtime path of "/usr/bin/indi_temma_telescope" to ""
+-- Installing: /usr/bin/indi_paramount_telescope
+-- Set runtime path of "/usr/bin/indi_paramount_telescope" to ""
+-- Installing: /usr/bin/indi_synscan_telescope
+-- Set runtime path of "/usr/bin/indi_synscan_telescope" to ""
+-- Installing: /usr/bin/indi_synscanlegacy_telescope
+-- Set runtime path of "/usr/bin/indi_synscanlegacy_telescope" to ""
+-- Installing: /usr/bin/indi_skycommander_telescope
+-- Set runtime path of "/usr/bin/indi_skycommander_telescope" to ""
+-- Installing: /usr/bin/indi_dsc_telescope
+-- Set runtime path of "/usr/bin/indi_dsc_telescope" to ""
+-- Installing: /usr/bin/indi_ieqlegacy_telescope
+-- Set runtime path of "/usr/bin/indi_ieqlegacy_telescope" to ""
+-- Installing: /usr/bin/indi_ieq_telescope
+-- Set runtime path of "/usr/bin/indi_ieq_telescope" to ""
+-- Installing: /usr/bin/indi_ioptronv3_telescope
+-- Set runtime path of "/usr/bin/indi_ioptronv3_telescope" to ""
+-- Installing: /usr/bin/indi_pmc8_telescope
+-- Set runtime path of "/usr/bin/indi_pmc8_telescope" to ""
+-- Installing: /usr/bin/indi_simulator_telescope
+-- Set runtime path of "/usr/bin/indi_simulator_telescope" to ""
+-- Installing: /usr/bin/indi_script_telescope
+-- Set runtime path of "/usr/bin/indi_script_telescope" to ""
+-- Installing: /usr/bin/indi_simulator_spectrograph
+-- Set runtime path of "/usr/bin/indi_simulator_spectrograph" to ""
+-- Installing: /usr/bin/indi_simulator_ccd
+-- Set runtime path of "/usr/bin/indi_simulator_ccd" to ""
+-- Installing: /usr/bin/indi_simulator_guide
+-- Set runtime path of "/usr/bin/indi_simulator_guide" to ""
+-- Installing: /usr/bin/indi_simulator_focus
+-- Set runtime path of "/usr/bin/indi_simulator_focus" to ""
+-- Installing: /usr/bin/indi_robo_focus
+-- Set runtime path of "/usr/bin/indi_robo_focus" to ""
+-- Installing: /usr/bin/indi_fcusb_focus
+-- Set runtime path of "/usr/bin/indi_fcusb_focus" to ""
+-- Installing: /usr/bin/indi_nfocus
+-- Set runtime path of "/usr/bin/indi_nfocus" to ""
+-- Installing: /usr/bin/indi_nstep_focus
+-- Set runtime path of "/usr/bin/indi_nstep_focus" to ""
+-- Installing: /usr/bin/indi_efa_focus
+-- Set runtime path of "/usr/bin/indi_efa_focus" to ""
+-- Installing: /usr/bin/indi_celestron_sct_focus
+-- Set runtime path of "/usr/bin/indi_celestron_sct_focus" to ""
+-- Installing: /usr/bin/indi_aaf2_focus
+-- Set runtime path of "/usr/bin/indi_aaf2_focus" to ""
+-- Installing: /usr/bin/indi_moonlite_focus
+-- Set runtime path of "/usr/bin/indi_moonlite_focus" to ""
+-- Installing: /usr/bin/indi_moonlitedro_focus
+-- Set runtime path of "/usr/bin/indi_moonlitedro_focus" to ""
+-- Installing: /usr/bin/indi_myfocuserpro2_focus
+-- Set runtime path of "/usr/bin/indi_myfocuserpro2_focus" to ""
+-- Installing: /usr/bin/indi_onfocus_focus
+-- Set runtime path of "/usr/bin/indi_onfocus_focus" to ""
+-- Installing: /usr/bin/indi_sestosenso_focus
+-- Set runtime path of "/usr/bin/indi_sestosenso_focus" to ""
+-- Installing: /usr/bin/indi_lakeside_focus
+-- Set runtime path of "/usr/bin/indi_lakeside_focus" to ""
+-- Installing: /usr/bin/indi_dmfc_focus
+-- Set runtime path of "/usr/bin/indi_dmfc_focus" to ""
+-- Installing: /usr/bin/indi_usbfocusv3_focus
+-- Set runtime path of "/usr/bin/indi_usbfocusv3_focus" to ""
+-- Installing: /usr/bin/indi_microtouch_focus
+-- Set runtime path of "/usr/bin/indi_microtouch_focus" to ""
+-- Installing: /usr/bin/indi_steeldrive2_focus
+-- Set runtime path of "/usr/bin/indi_steeldrive2_focus" to ""
+-- Installing: /usr/bin/indi_steeldrive_focus
+-- Set runtime path of "/usr/bin/indi_steeldrive_focus" to ""
+-- Installing: /usr/bin/indi_lynx_focus
+-- Set runtime path of "/usr/bin/indi_lynx_focus" to ""
+-- Installing: /usr/bin/indi_perfectstar_focus
+-- Set runtime path of "/usr/bin/indi_perfectstar_focus" to ""
+-- Installing: /usr/bin/indi_siefs_focus
+-- Set runtime path of "/usr/bin/indi_siefs_focus" to ""
+-- Installing: /usr/bin/indi_hitecastrodc_focus
+-- Set runtime path of "/usr/bin/indi_hitecastrodc_focus" to ""
+-- Installing: /usr/bin/indi_deepskydad_af1_focus
+-- Set runtime path of "/usr/bin/indi_deepskydad_af1_focus" to ""
+-- Installing: /usr/bin/indi_deepskydad_af2_focus
+-- Set runtime path of "/usr/bin/indi_deepskydad_af2_focus" to ""
+-- Installing: /usr/bin/indi_deepskydad_af3_focus
+-- Set runtime path of "/usr/bin/indi_deepskydad_af3_focus" to ""
+-- Installing: /usr/bin/indi_smartfocus_focus
+-- Set runtime path of "/usr/bin/indi_smartfocus_focus" to ""
+-- Installing: /usr/bin/indi_tcfs_focus
+-- Set runtime path of "/usr/bin/indi_tcfs_focus" to ""
+-- Installing: /usr/bin/indi_lacerta_mfoc_focus
+-- Set runtime path of "/usr/bin/indi_lacerta_mfoc_focus" to ""
+-- Installing: /lib/udev/rules.d/99-focusers.rules
+-- Installing: /usr/bin/indi_gemini_focus
+-- Set runtime path of "/usr/bin/indi_gemini_focus" to ""
+-- Installing: /usr/bin/indi_nightcrawler_focus
+-- Set runtime path of "/usr/bin/indi_nightcrawler_focus" to ""
+-- Installing: /usr/bin/indi_pyxis_rotator
+-- Set runtime path of "/usr/bin/indi_pyxis_rotator" to ""
+-- Installing: /usr/bin/indi_integra_focus
+-- Set runtime path of "/usr/bin/indi_integra_focus" to ""
+-- Installing: /usr/bin/indi_xagyl_wheel
+-- Set runtime path of "/usr/bin/indi_xagyl_wheel" to ""
+-- Installing: /usr/bin/indi_simulator_wheel
+-- Set runtime path of "/usr/bin/indi_simulator_wheel" to ""
+-- Installing: /usr/bin/indi_manual_wheel
+-- Set runtime path of "/usr/bin/indi_manual_wheel" to ""
+-- Installing: /usr/bin/indi_optec_wheel
+-- Set runtime path of "/usr/bin/indi_optec_wheel" to ""
+-- Installing: /usr/bin/indi_quantum_wheel
+-- Set runtime path of "/usr/bin/indi_quantum_wheel" to ""
+-- Installing: /usr/bin/indi_trutech_wheel
+-- Set runtime path of "/usr/bin/indi_trutech_wheel" to ""
+-- Installing: /usr/bin/indi_qhycfw1_wheel
+-- Set runtime path of "/usr/bin/indi_qhycfw1_wheel" to ""
+-- Installing: /usr/bin/indi_qhycfw2_wheel
+-- Set runtime path of "/usr/bin/indi_qhycfw2_wheel" to ""
+-- Installing: /usr/bin/indi_qhycfw3_wheel
+-- Set runtime path of "/usr/bin/indi_qhycfw3_wheel" to ""
+-- Installing: /usr/bin/indi_simulator_dome
+-- Set runtime path of "/usr/bin/indi_simulator_dome" to ""
+-- Installing: /usr/bin/indi_rolloff_dome
+-- Set runtime path of "/usr/bin/indi_rolloff_dome" to ""
+-- Installing: /usr/bin/indi_baader_dome
+-- Set runtime path of "/usr/bin/indi_baader_dome" to ""
+-- Installing: /usr/bin/indi_domepro2_dome
+-- Set runtime path of "/usr/bin/indi_domepro2_dome" to ""
+-- Installing: /usr/bin/indi_rigel_dome
+-- Set runtime path of "/usr/bin/indi_rigel_dome" to ""
+-- Installing: /usr/bin/indi_scopedome_dome
+-- Set runtime path of "/usr/bin/indi_scopedome_dome" to ""
+-- Installing: /usr/bin/indi_script_dome
+-- Set runtime path of "/usr/bin/indi_script_dome" to ""
+-- Installing: /usr/bin/indi_v4l2_ccd
+-- Set runtime path of "/usr/bin/indi_v4l2_ccd" to ""
+-- Installing: /lib/udev/rules.d/80-dbk21-camera.rules
+-- Installing: /lib/udev/rules.d/99-indi_auxiliary.rules
+-- Installing: /usr/bin/indi_skysafari
+-- Set runtime path of "/usr/bin/indi_skysafari" to ""
+-- Installing: /usr/bin/indi_watchdog
+-- Set runtime path of "/usr/bin/indi_watchdog" to ""
+-- Installing: /usr/bin/indi_flipflat
+-- Set runtime path of "/usr/bin/indi_flipflat" to ""
+-- Installing: /usr/bin/indi_pegasus_upb
+-- Set runtime path of "/usr/bin/indi_pegasus_upb" to ""
+-- Installing: /usr/bin/indi_pegasus_ppb
+-- Set runtime path of "/usr/bin/indi_pegasus_ppb" to ""
+-- Installing: /usr/bin/indi_snapcap
+-- Set runtime path of "/usr/bin/indi_snapcap" to ""
+-- Installing: /usr/bin/indi_astromech_lpm
+-- Set runtime path of "/usr/bin/indi_astromech_lpm" to ""
+-- Installing: /usr/bin/indi_sqm_weather
+-- Set runtime path of "/usr/bin/indi_sqm_weather" to ""
+-- Installing: /usr/bin/indi_simulator_sqm
+-- Set runtime path of "/usr/bin/indi_simulator_sqm" to ""
+-- Installing: /usr/bin/indi_astrometry
+-- Set runtime path of "/usr/bin/indi_astrometry" to ""
+-- Installing: /usr/bin/indi_star2000
+-- Set runtime path of "/usr/bin/indi_star2000" to ""
+-- Installing: /usr/bin/indi_arduinost4
+-- Set runtime path of "/usr/bin/indi_arduinost4" to ""
+-- Installing: /usr/bin/indi_planewave_deltat
+-- Set runtime path of "/usr/bin/indi_planewave_deltat" to ""
+-- Installing: /usr/bin/indi_gpusb
+-- Set runtime path of "/usr/bin/indi_gpusb" to ""
+-- Installing: /usr/bin/indi_joystick
+-- Set runtime path of "/usr/bin/indi_joystick" to ""
+-- Installing: /usr/bin/indi_simulator_gps
+-- Set runtime path of "/usr/bin/indi_simulator_gps" to ""
+-- Installing: /usr/bin/indi_usbdewpoint
+-- Set runtime path of "/usr/bin/indi_usbdewpoint" to ""
+-- Installing: /usr/bin/indi_simulator_weather
+-- Set runtime path of "/usr/bin/indi_simulator_weather" to ""
+-- Installing: /usr/bin/indi_meta_weather
+-- Set runtime path of "/usr/bin/indi_meta_weather" to ""
+-- Installing: /usr/bin/indi_watcher_weather
+-- Set runtime path of "/usr/bin/indi_watcher_weather" to ""
+-- Installing: /usr/bin/indi_weather_safety_proxy
+-- Set runtime path of "/usr/bin/indi_weather_safety_proxy" to ""
+-- Installing: /usr/bin/indi_mbox_weather
+-- Set runtime path of "/usr/bin/indi_mbox_weather" to ""
+-- Installing: /usr/bin/indi_vantage_weather
+-- Set runtime path of "/usr/bin/indi_vantage_weather" to ""
+-- Installing: /lib/udev/rules.d/99-vantage.rules
+-- Installing: /usr/bin/indi_wunderground_weather
+-- Set runtime path of "/usr/bin/indi_wunderground_weather" to ""
+-- Installing: /usr/bin/indi_openweathermap_weather
+-- Set runtime path of "/usr/bin/indi_openweathermap_weather" to ""
+-- Installing: /usr/bin/indi_getprop
+-- Installing: /usr/bin/indi_setprop
+-- Installing: /usr/bin/indi_eval
+-- Installing: /usr/bin/indi_hid_test
+-- Installing: /usr/share/indi/drivers.xml
+-- Installing: /usr/share/indi/indi_tcfs_sk.xml
+-- Installing: /usr/lib/x86_64-linux-gnu/pkgconfig/libindi.pc
+-- Installing: /usr/include/libindi/stream/streammanager.h
+-- Installing: /usr/include/libindi/stream/jpegutils.h
+-- Installing: /usr/include/libindi/stream/ccvt.h
+-- Installing: /usr/include/libindi/stream/ccvt_types.h
+-- Installing: /usr/include/libindi/stream/encoder/encodermanager.h
+-- Installing: /usr/include/libindi/stream/encoder/encoderinterface.h
+-- Installing: /usr/include/libindi/stream/encoder/rawencoder.h
+-- Installing: /usr/include/libindi/stream/encoder/mjpegencoder.h
+-- Installing: /usr/include/libindi/stream/recorder/recordermanager.h
+-- Installing: /usr/include/libindi/stream/recorder/recorderinterface.h
+-- Installing: /usr/include/libindi/stream/recorder/serrecorder.h
+-- Installing: /usr/include/libindi/v4l2_decode.h
+-- Installing: /usr/include/libindi/v4l2_builtin_decoder.h
+-- Installing: /usr/include/libindi/v4l2_colorspace.h
+-- Installing: /usr/include/libindi/indiversion.h
+-- Installing: /usr/include/libindi/indiapi.h
+-- Installing: /usr/include/libindi/indidevapi.h
+-- Installing: /usr/include/libindi/base64.h
+-- Installing: /usr/include/libindi/lilxml.h
+-- Installing: /usr/include/libindi/indicom.h
+-- Installing: /usr/include/libindi/eventloop.h
+-- Installing: /usr/include/libindi/indidriver.h
+-- Installing: /usr/include/libindi/dsp.h
+-- Installing: /usr/include/libindi/indibase.h
+-- Installing: /usr/include/libindi/indibasetypes.h
+-- Installing: /usr/include/libindi/basedevice.h
+-- Installing: /usr/include/libindi/defaultdevice.h
+-- Installing: /usr/include/libindi/indiccd.h
+-- Installing: /usr/include/libindi/indiccdchip.h
+-- Installing: /usr/include/libindi/indisensorinterface.h
+-- Installing: /usr/include/libindi/indicorrelator.h
+-- Installing: /usr/include/libindi/indidetector.h
+-- Installing: /usr/include/libindi/indispectrograph.h
+-- Installing: /usr/include/libindi/indireceiver.h
+-- Installing: /usr/include/libindi/indifilterwheel.h
+-- Installing: /usr/include/libindi/indifocuserinterface.h
+-- Installing: /usr/include/libindi/indiweatherinterface.h
+-- Installing: /usr/include/libindi/indifocuser.h
+-- Installing: /usr/include/libindi/indirotator.h
+-- Installing: /usr/include/libindi/inditelescope.h
+-- Installing: /usr/include/libindi/indiguiderinterface.h
+-- Installing: /usr/include/libindi/indifilterinterface.h
+-- Installing: /usr/include/libindi/indirotatorinterface.h
+-- Installing: /usr/include/libindi/indiproperty.h
+-- Installing: /usr/include/libindi/indistandardproperty.h
+-- Installing: /usr/include/libindi/indidome.h
+-- Installing: /usr/include/libindi/indigps.h
+-- Installing: /usr/include/libindi/indilightboxinterface.h
+-- Installing: /usr/include/libindi/indidustcapinterface.h
+-- Installing: /usr/include/libindi/indiweather.h
+-- Installing: /usr/include/libindi/indilogger.h
+-- Installing: /usr/include/libindi/indicontroller.h
+-- Installing: /usr/include/libindi/indiusbdevice.h
+-- Installing: /usr/include/libindi/hidapi.h
+-- Installing: /usr/include/libindi/connectionplugins/connectioninterface.h
+-- Installing: /usr/include/libindi/connectionplugins/connectionserial.h
+-- Installing: /usr/include/libindi/connectionplugins/connectiontcp.h
+-- Installing: /usr/include/libindi/dsp/manager.h
+-- Installing: /usr/include/libindi/dsp/dspinterface.h
+-- Installing: /usr/include/libindi/dsp/transforms.h
+-- Installing: /usr/include/libindi/dsp/convolution.h
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200classic  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200autostar  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200_16  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200gps  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200ap_experimental  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200ap_gtocp2  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200ap  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200gemini  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200zeq25  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200gotonova  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200pulsar2  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200fs2  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200ss2000pc  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200_OnStep  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_lx200_10micron  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_ioptronHC8406  2>&1
+running /usr/bin/cmake -E create_symlink indi_lx200generic /usr/bin/indi_eq500x_telescope  2>&1
+running /usr/bin/cmake -E create_symlink indi_tcfs_focus /usr/bin/indi_tcfs3_focus  2>&1
 -- Installing: /usr/lib/x86_64-linux-gnu/libindiAlignmentDriver.so.1.8.5
 -- Up-to-date: /usr/lib/x86_64-linux-gnu/libindiAlignmentDriver.so.1
 -- Up-to-date: /usr/lib/x86_64-linux-gnu/libindiAlignmentDriver.so
