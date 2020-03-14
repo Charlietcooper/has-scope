@@ -1,0 +1,25 @@
+-- Installing: /usr/lib/x86_64-linux-gnu/libindiAlignmentDriver.so.1.8.5
+-- Up-to-date: /usr/lib/x86_64-linux-gnu/libindiAlignmentDriver.so.1
+-- Up-to-date: /usr/lib/x86_64-linux-gnu/libindiAlignmentDriver.so
+-- Installing: /usr/include/libindi/alignment/AlignmentSubsystemForMathPlugins.h
+-- Installing: /usr/include/libindi/alignment/AlignmentSubsystemForDrivers.h
+-- Installing: /usr/include/libindi/alignment/BasicMathPlugin.h
+-- Installing: /usr/include/libindi/alignment/BuiltInMathPlugin.h
+-- Installing: /usr/include/libindi/alignment/ClientAPIForAlignmentDatabase.h
+-- Installing: /usr/include/libindi/alignment/ClientAPIForMathPluginManagement.h
+-- Installing: /usr/include/libindi/alignment/Common.h
+-- Installing: /usr/include/libindi/alignment/ConvexHull.h
+-- Installing: /usr/include/libindi/alignment/DriverCommon.h
+-- Installing: /usr/include/libindi/alignment/InMemoryDatabase.h
+-- Installing: /usr/include/libindi/alignment/MathPlugin.h
+-- Installing: /usr/include/libindi/alignment/MathPluginManagement.h
+-- Installing: /usr/include/libindi/alignment/SVDMathPlugin.h
+-- Installing: /usr/include/libindi/alignment/TelescopeDirectionVectorSupportFunctions.h
+-- Installing: /usr/include/libindi/alignment/MapPropertiesToInMemoryDatabase.h
+-- Installing: /usr/lib/x86_64-linux-gnu/libindiAlignmentClient.a
+-- Installing: /usr/lib/x86_64-linux-gnu/indi/MathPlugins/libindi_SVD_MathPlugin.so
+-- Set runtime path of "/usr/lib/x86_64-linux-gnu/indi/MathPlugins/libindi_SVD_MathPlugin.so" to ""
+-- Installing: /usr/bin/indi_skywatcherAltAzMount
+-- Set runtime path of "/usr/bin/indi_skywatcherAltAzMount" to ""
+-- Installing: /usr/bin/indi_skywatcherAltAzSimple
+-- Set runtime path of "/usr/bin/indi_skywatcherAltAzSimple" to ""
