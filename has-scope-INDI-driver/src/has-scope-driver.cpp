@@ -25,7 +25,7 @@
 #include <memory>
 
 // We declare an auto pointer to HASScope.
-static std::unique_ptr<HASScope> telescope_sim(new HASScope());
+static std::unique_ptr<HASScope> has_telescope(new HASScope());
 
 #define GOTO_RATE      6.5      /* slew rate, degrees/s */
 #define SLEW_RATE      2.5      /* slew rate, degrees/s */
@@ -48,22 +48,22 @@ void ISPoll(void *p);
 
 void ISGetProperties(const char *dev)
 {
-    telescope_sim->ISGetProperties(dev);
+    has_telescope->ISGetProperties(dev);
 }
 
 void ISNewSwitch(const char *dev, const char *name, ISState *states, char *names[], int n)
 {
-    telescope_sim->ISNewSwitch(dev, name, states, names, n);
+    has_telescope->ISNewSwitch(dev, name, states, names, n);
 }
 
 void ISNewText(const char *dev, const char *name, char *texts[], char *names[], int n)
 {
-    telescope_sim->ISNewText(dev, name, texts, names, n);
+    has_telescope->ISNewText(dev, name, texts, names, n);
 }
 
 void ISNewNumber(const char *dev, const char *name, double values[], char *names[], int n)
 {
-    telescope_sim->ISNewNumber(dev, name, values, names, n);
+    has_telescope->ISNewNumber(dev, name, values, names, n);
 }
 
 void ISNewBLOB(const char *dev, const char *name, int sizes[], int blobsizes[], char *blobs[], char *formats[],
@@ -80,7 +80,7 @@ void ISNewBLOB(const char *dev, const char *name, int sizes[], int blobsizes[], 
 }
 void ISSnoopDevice(XMLEle *root)
 {
-    telescope_sim->ISSnoopDevice(root);
+    has_telescope->ISSnoopDevice(root);
 }
 
 HASScope::HASScope()
@@ -100,7 +100,7 @@ HASScope::HASScope()
 
 const char *HASScope::getDefaultName()
 {
-    return "Telescope Simulator";
+    return "HAS Telescope";
 }
 
 bool HASScope::initProperties()
