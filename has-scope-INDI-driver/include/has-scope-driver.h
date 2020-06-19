@@ -1,107 +1,56 @@
-/*******************************************************************************
- Copyright(c) 2015 Jasem Mutlaq. All rights reserved.
+/*
+   INDI Developers Manual
+   Tutorial #2
 
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Library General Public
- License version 2 as published by the Free Software Foundation.
- .
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Library General Public License for more details.
- .
- You should have received a copy of the GNU Library General Public License
- along with this library; see the file COPYING.LIB.  If not, write to
- the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- Boston, MA 02110-1301, USA.
-*******************************************************************************/
+   "Simple Telescope Driver"
+
+   We develop a simple telescope simulator.
+
+   Refer to README, which contains instruction on how to build this driver, and use it
+   with an INDI-compatible client.
+
+*/
+
+/** \file simplescope.h
+    \brief Construct a basic INDI telescope device that simulates GOTO commands.
+    \author Jasem Mutlaq
+
+    \example simplescope.h
+    A simple GOTO telescope that simulator slewing operation.
+*/
 
 #pragma once
 
-#include "indiguiderinterface.h"
 #include "inditelescope.h"
 
-/**
- * @brief The HASScope class provides a simple mount simulator of an equatorial mount.
- *
- * It supports the following features:
- * + Sideral and Custom Tracking rates.
- * + Goto & Sync
- * + NWSE Hand controller direciton key slew.
- * + Tracking On/Off.
- * + Parking & Unparking with custom parking positions.
- * + Setting Time & Location.
- *
- * On startup and by default the mount shall point to the celestial pole.
- *
- * @author Jasem Mutlaq & Richard Croy
- */
-class HASScope : public INDI::Telescope, public INDI::GuiderInterface
+class SimpleScope : public INDI::Telescope
 {
   public:
-    HASScope();
-    virtual ~HASScope() = default;
-
-    virtual const char *getDefaultName() override;
-    virtual bool Connect() override;
-    virtual bool Disconnect() override;
-    virtual bool ReadScopeStatus() override;
-    virtual bool initProperties() override;
-    virtual void ISGetProperties(const char *dev) override;
-    virtual bool updateProperties() override;
-
-    virtual bool ISNewNumber(const char *dev, const char *name, double values[], char *names[], int n) override;
-    virtual bool ISNewSwitch(const char *dev, const char *name, ISState *states, char *names[], int n) override;
+    SimpleScope();
 
   protected:
-    virtual bool MoveNS(INDI_DIR_NS dir, TelescopeMotionCommand command) override;
-    virtual bool MoveWE(INDI_DIR_WE dir, TelescopeMotionCommand command) override;
-    virtual bool Abort() override;
+    bool Handshake() override;
 
-    virtual IPState GuideNorth(uint32_t ms) override;
-    virtual IPState GuideSouth(uint32_t ms) override;
-    virtual IPState GuideEast(uint32_t ms) override;
-    virtual IPState GuideWest(uint32_t ms) override;
+    const char *getDefaultName() override;
+    bool initProperties() override;
 
-    virtual bool SetTrackMode(uint8_t mode) override;
-    virtual bool SetTrackEnabled(bool enabled) override;
-    virtual bool SetTrackRate(double raRate, double deRate) override;
+    // Telescope specific functions
+    bool ReadScopeStatus() override;
+    bool Goto(double, double) override;
+    bool Abort() override;
 
-    virtual bool Goto(double, double) override;
-    virtual bool Park() override;
-    virtual bool UnPark() override;
-    virtual bool Sync(double ra, double dec) override;
+  private:
+    double currentRA {0};
+    double currentDEC {90};
+    double targetRA {0};
+    double targetDEC {0};
 
-    // Parking
-    virtual bool SetCurrentPark() override;
-    virtual bool SetDefaultPark() override;
+    // Debug channel to write mount logs to
+    // Default INDI::Logger debugging/logging channel are Message, Warn, Error, and Debug
+    // Since scope information can be _very_ verbose, we create another channel SCOPE specifically
+    // for extra debug logs. This way the user can turn it on/off as desired.
+    uint8_t DBG_SCOPE { INDI::Logger::DBG_IGNORE };
 
-private:
-    double currentRA { 0 };
-    double currentDEC { 90 };
-    double targetRA { 0 };
-    double targetDEC { 0 };
-
-    /// used by GoTo and Park
-    void StartSlew(double ra, double dec, TelescopeStatus status);
-
-    bool forceMeridianFlip { false };
-    unsigned int DBG_SCOPE { 0 };
-
-    double guiderEWTarget[2];
-    double guiderNSTarget[2];
-
-    INumber GuideRateN[2];
-    INumberVectorProperty GuideRateNP;
-
-#ifdef USE_EQUATORIAL_PE
-    INumberVectorProperty EqPENV;
-    INumber EqPEN[2];
-
-    ISwitch PEErrNSS[2];
-    ISwitchVectorProperty PEErrNSSP;
-
-    ISwitch PEErrWES[2];
-    ISwitchVectorProperty PEErrWESP;
-#endif
+    // slew rate, degrees/s
+    static const uint8_t SLEW_RATE = 3;
 };
