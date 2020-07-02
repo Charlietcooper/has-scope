@@ -1,21 +1,13 @@
 /*
-   INDI Developers Manual
-   Tutorial #2
-
-   "Simple Telescope Driver"
-
-   We develop a simple telescope simulator.
-
-   Refer to README, which contains instruction on how to build this driver, and use it
-   with an INDI-compatible client.
+   Hamilton Astronomical Society 24" Telescope INDI Driver
 
 */
 
-/** \file simplescope.h
+/** \file has-scope-driver.h
     \brief Construct a basic INDI telescope device that simulates GOTO commands.
-    \author Jasem Mutlaq
+    \author Richard Croy
 
-    \example simplescope.h
+    \example has-scope-driver.h
     A simple GOTO telescope that simulator slewing operation.
 */
 
@@ -23,10 +15,10 @@
 
 #include "inditelescope.h"
 
-class SimpleScope : public INDI::Telescope
+class HASScope : public INDI::Telescope
 {
   public:
-    SimpleScope();
+    HASScope();
 
   protected:
     bool Handshake() override;

@@ -1,39 +1,31 @@
 /*
-   INDI Developers Manual
-   Tutorial #2
-
-   "Simple Telescope Driver"
-
-   We develop a simple telescope simulator.
-
-   Refer to README, which contains instruction on how to build this driver, and use it
-   with an INDI-compatible client.
+   Hamilton Astronomical Society 24" Telescope INDI Driver
 
 */
 
-/** \file simplescope.cpp
+/** \file has-scope-driver.cpp
     \brief Construct a basic INDI telescope device that simulates GOTO commands.
-    \author Jasem Mutlaq
+    \author Richard Croy
 
-    \example simplescope.cpp
+    \example has-scope-driver.cpp
     A simple GOTO telescope that simulator slewing operation.
 */
 
-#include "simplescope.h"
+#include "has-scope-driver.h"
 
 #include "indicom.h"
 
 #include <cmath>
 #include <memory>
 
-static std::unique_ptr<SimpleScope> simpleScope(new SimpleScope());
+static std::unique_ptr<HASScope> HASScope(new HASScope());
 
 /**************************************************************************************
 ** Return properties of device.
 ***************************************************************************************/
 void ISGetProperties(const char *dev)
 {
-    simpleScope->ISGetProperties(dev);
+    HASScope->ISGetProperties(dev);
 }
 
 /**************************************************************************************
@@ -41,7 +33,7 @@ void ISGetProperties(const char *dev)
 ***************************************************************************************/
 void ISNewSwitch(const char *dev, const char *name, ISState *states, char *names[], int n)
 {
-    simpleScope->ISNewSwitch(dev, name, states, names, n);
+    HASScope->ISNewSwitch(dev, name, states, names, n);
 }
 
 /**************************************************************************************
@@ -49,7 +41,7 @@ void ISNewSwitch(const char *dev, const char *name, ISState *states, char *names
 ***************************************************************************************/
 void ISNewText(const char *dev, const char *name, char *texts[], char *names[], int n)
 {
-    simpleScope->ISNewText(dev, name, texts, names, n);
+    HASScope->ISNewText(dev, name, texts, names, n);
 }
 
 /**************************************************************************************
@@ -57,7 +49,7 @@ void ISNewText(const char *dev, const char *name, char *texts[], char *names[], 
 ***************************************************************************************/
 void ISNewNumber(const char *dev, const char *name, double values[], char *names[], int n)
 {
-    simpleScope->ISNewNumber(dev, name, values, names, n);
+    HASScope->ISNewNumber(dev, name, values, names, n);
 }
 
 /**************************************************************************************
@@ -66,7 +58,7 @@ void ISNewNumber(const char *dev, const char *name, double values[], char *names
 void ISNewBLOB(const char *dev, const char *name, int sizes[], int blobsizes[], char *blobs[], char *formats[],
                char *names[], int n)
 {
-    simpleScope->ISNewBLOB(dev, name, sizes, blobsizes, blobs, formats, names, n);
+    HASScope->ISNewBLOB(dev, name, sizes, blobsizes, blobs, formats, names, n);
 }
 
 /**************************************************************************************
@@ -74,10 +66,10 @@ void ISNewBLOB(const char *dev, const char *name, int sizes[], int blobsizes[], 
 ***************************************************************************************/
 void ISSnoopDevice(XMLEle *root)
 {
-    simpleScope->ISSnoopDevice(root);
+    HASScope->ISSnoopDevice(root);
 }
 
-SimpleScope::SimpleScope()
+HASScope::HASScope()
 {
     // We add an additional debug level so we can log verbose scope status
     DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
@@ -86,7 +78,7 @@ SimpleScope::SimpleScope()
 /**************************************************************************************
 ** We init our properties here. The only thing we want to init are the Debug controls
 ***************************************************************************************/
-bool SimpleScope::initProperties()
+bool HASScope::initProperties()
 {
     // ALWAYS call initProperties() of parent first
     INDI::Telescope::initProperties();
@@ -107,7 +99,7 @@ bool SimpleScope::initProperties()
 /**************************************************************************************
 ** INDI is asking us to check communication with the device via a handshake
 ***************************************************************************************/
-bool SimpleScope::Handshake()
+bool HASScope::Handshake()
 {
     // When communicating with a real mount, we check here if commands are receieved
     // and acknolowedged by the mount. For SimpleScope, we simply return true.
@@ -117,15 +109,15 @@ bool SimpleScope::Handshake()
 /**************************************************************************************
 ** INDI is asking us for our default device name
 ***************************************************************************************/
-const char *SimpleScope::getDefaultName()
+const char *HASScope::getDefaultName()
 {
-    return "Simple Scope";
+    return "HAS 24 inch Telescope";
 }
 
 /**************************************************************************************
 ** Client is asking us to slew to a new position
 ***************************************************************************************/
-bool SimpleScope::Goto(double ra, double dec)
+bool HASScope::Goto(double ra, double dec)
 {
     targetRA  = ra;
     targetDEC = dec;
@@ -148,7 +140,7 @@ bool SimpleScope::Goto(double ra, double dec)
 /**************************************************************************************
 ** Client is asking us to abort our motion
 ***************************************************************************************/
-bool SimpleScope::Abort()
+bool HASScope::Abort()
 {
     return true;
 }
@@ -156,7 +148,7 @@ bool SimpleScope::Abort()
 /**************************************************************************************
 ** Client is asking us to report telescope status
 ***************************************************************************************/
-bool SimpleScope::ReadScopeStatus()
+bool HASScope::ReadScopeStatus()
 {
     static struct timeval ltv { 0, 0 };
     struct timeval tv { 0, 0 };
