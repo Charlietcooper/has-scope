@@ -15,10 +15,10 @@
 
 #include "inditelescope.h"
 
-class HASScope : public INDI::Telescope
+class HASSTelescope : public INDI::Telescope
 {
   public:
-    HASScope();
+    HASSTelescope();
 
   protected:
     bool Handshake() override;

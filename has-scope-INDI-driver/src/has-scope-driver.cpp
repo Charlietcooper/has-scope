@@ -18,7 +18,7 @@
 #include <cmath>
 #include <memory>
 
-static std::unique_ptr<HASScope> HASScope(new HASScope());
+static std::unique_ptr<HASSTelescope> HASScope(new HASSTelescope());
 
 /**************************************************************************************
 ** Return properties of device.
@@ -69,7 +69,7 @@ void ISSnoopDevice(XMLEle *root)
     HASScope->ISSnoopDevice(root);
 }
 
-HASScope::HASScope()
+HASSTelescope::HASSTelescope()
 {
     // We add an additional debug level so we can log verbose scope status
     DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
@@ -78,7 +78,7 @@ HASScope::HASScope()
 /**************************************************************************************
 ** We init our properties here. The only thing we want to init are the Debug controls
 ***************************************************************************************/
-bool HASScope::initProperties()
+bool HASSTelescope::initProperties()
 {
     // ALWAYS call initProperties() of parent first
     INDI::Telescope::initProperties();
@@ -99,7 +99,7 @@ bool HASScope::initProperties()
 /**************************************************************************************
 ** INDI is asking us to check communication with the device via a handshake
 ***************************************************************************************/
-bool HASScope::Handshake()
+bool HASSTelescope::Handshake()
 {
     // When communicating with a real mount, we check here if commands are receieved
     // and acknolowedged by the mount. For SimpleScope, we simply return true.
@@ -109,15 +109,15 @@ bool HASScope::Handshake()
 /**************************************************************************************
 ** INDI is asking us for our default device name
 ***************************************************************************************/
-const char *HASScope::getDefaultName()
+const char *HASSTelescope::getDefaultName()
 {
-    return "HAS 24 inch Telescope";
+    return "HAS";
 }
 
 /**************************************************************************************
 ** Client is asking us to slew to a new position
 ***************************************************************************************/
-bool HASScope::Goto(double ra, double dec)
+bool HASSTelescope::Goto(double ra, double dec)
 {
     targetRA  = ra;
     targetDEC = dec;
@@ -140,7 +140,7 @@ bool HASScope::Goto(double ra, double dec)
 /**************************************************************************************
 ** Client is asking us to abort our motion
 ***************************************************************************************/
-bool HASScope::Abort()
+bool HASSTelescope::Abort()
 {
     return true;
 }
@@ -148,7 +148,7 @@ bool HASScope::Abort()
 /**************************************************************************************
 ** Client is asking us to report telescope status
 ***************************************************************************************/
-bool HASScope::ReadScopeStatus()
+bool HASSTelescope::ReadScopeStatus()
 {
     static struct timeval ltv { 0, 0 };
     struct timeval tv { 0, 0 };
@@ -179,17 +179,18 @@ bool HASScope::ReadScopeStatus()
             dx = targetRA - currentRA;
 
             // If diff is very small, i.e. smaller than how much we changed since last time, then we reached target RA.
-            if (fabs(dx) * 15. <= da_ra)
+            if (fabs(dx)  <= da_ra)
+            
             {
                 currentRA = targetRA;
                 nlocked++;
             }
             // Otherwise, increase RA
             else if (dx > 0)
-                currentRA += da_ra / 15.;
+                currentRA += da_ra ;
             // Otherwise, decrease RA
             else
-                currentRA -= da_ra / 15.;
+                currentRA -= da_ra;
 
             // Calculate diff in DEC
             dy = targetDEC - currentDEC;
@@ -207,7 +208,7 @@ bool HASScope::ReadScopeStatus()
             else
                 currentDEC -= da_dec;
 
-            // Let's check if we recahed position for both RA/DEC
+            // Let's check if we reached position for both RA/DEC
             if (nlocked == 2)
             {
                 // Let's set state to TRACKING
@@ -228,6 +229,7 @@ bool HASScope::ReadScopeStatus()
     fs_sexa(DecStr, currentDEC, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
+    //LOGF_INFO("Current RA: %s Current DEC: %s", RAStr, DecStr);
 
     NewRaDec(currentRA, currentDEC);
     return true;
