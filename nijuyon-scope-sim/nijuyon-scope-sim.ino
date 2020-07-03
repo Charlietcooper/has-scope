@@ -35,14 +35,9 @@ void setup() {
 
    stepperAZI.setMaxSpeed(max_speed_SP);
    stepperAZI.setAcceleration(max_speed_SP / sec_to_max_speed); 
-   //stepperAZI.setMinPulseWidth(500);
-   //stepperAZI.setSpeed(max_speed_SP);
-    
    
    stepperALT.setMaxSpeed(max_speed_SP * 1.0); // 3.203125
    stepperALT.setAcceleration(max_speed_SP / sec_to_max_speed); 
-   //stepperALT.setMinPulseWidth(600);
-   //stepperALT.setSpeed(max_speed_SP);
 
 }
 
@@ -104,21 +99,24 @@ void issueDriverCommand() {
   if (RecdAZI != AZI_SP) { 
     AZI_SP = RecdAZI;
     stepperAZI.moveTo(AZI_SP);
-    //stepperAZI.setSpeed(max_speed_SP);
-    Serial.print("Azimuth move to: ");
+     Serial.print("Azimuth move to: ");
     Serial.println(AZI_SP);
   }
   if (RecdALT != ALT_SP) { 
     ALT_SP = RecdALT;
     stepperALT.moveTo(ALT_SP);
-    //stepperALT.setSpeed(max_speed_SP);
     Serial.print("Altitude move to: ");
     Serial.println(ALT_SP);
   }
   Serial.println("-------------------------");
 }
 
-// Functions for received serial communication
+/* 
+ *  Functions for received serial communication
+ *  
+ *  Expects a packet like: <45,-3000>\0
+ */
+
 void recvWithStartEndMarkers() {
     static boolean recvInProgress = false;
     static byte ndx = 0;
