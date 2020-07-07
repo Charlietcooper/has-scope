@@ -11,6 +11,8 @@ const long AZI_LIM_LO = -5000000;
 const long ALT_LIM_HI = 500000;
 const long ALT_LIM_LO = -500000;
 
+const boolean DISABLE_OUTPUT = true;
+
 const float max_speed_SP = 900.0; // Steps per second (as per stepper motor library, not sure if this is what it does in reality
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
 
@@ -58,28 +60,22 @@ void loop() {
     stepperAZI.run();
     stepperALT.run();
     
-    if (messageCntr > 90000) {
-        //Serial.print("isRunning: "); 
-        //Serial.print("X = ");
-        //Serial.print(stepperAZI.isRunning());
-        //Serial.print(" Y = ");
-        //Serial.println(stepperALT.isRunning());
+    if (DISABLE_OUTPUT == false && messageCntr > 90000) {
         Serial.print("Speed: "); 
-        Serial.print("X = ");
+        Serial.print("AZI = ");
         Serial.print(stepperAZI.speed()); 
-        Serial.print(" Y = ");
+        Serial.print(" ALT = ");
         Serial.println(stepperALT.speed()); 
         Serial.print("Current Position: "); 
-        Serial.print("X = ");
+        Serial.print(" AZI = ");
         Serial.print(stepperAZI.currentPosition());   
-        Serial.print(" Y = ");
+        Serial.print(" ALT = ");
         Serial.println(stepperALT.currentPosition());
         Serial.print("Target Position: "); 
-        Serial.print("X = ");
+        Serial.print("AZI = ");
         Serial.print(stepperAZI.targetPosition());   
-        Serial.print(" Y = ");
+        Serial.print(" ALT = ");
         Serial.println(stepperALT.targetPosition());
-
 
         messageCntr = 0;
     } else {

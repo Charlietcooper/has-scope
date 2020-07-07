@@ -14,6 +14,8 @@
 #include "has-scope-driver.h"
 
 #include "indicom.h"
+#include "indicontroller.h"
+#include "connectionplugins/connectionserial.h"
 
 #include <cmath>
 #include <memory>
@@ -69,31 +71,94 @@ void ISSnoopDevice(XMLEle *root)
     HASScope->ISSnoopDevice(root);
 }
 
+/**************************************************************************************
+** HAS Telescope Basic constructor
+***************************************************************************************/
 HASSTelescope::HASSTelescope()
 {
     // We add an additional debug level so we can log verbose scope status
     DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
+
+     double longitude = 175.2793, latitude = -37.7870; // Hamilton New Zealand
+    double elevation = 40; // meters
+
+    SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT);
+    //setTelescopeConnection(CONNECTION_SERIAL);
+    updateLocation(latitude, longitude, elevation);
+
+    LOG_DEBUG("Initializing HAS Telescope...");
+
 }
 
 /**************************************************************************************
-** We init our properties here. The only thing we want to init are the Debug controls
+** We init our properties here. 
 ***************************************************************************************/
 bool HASSTelescope::initProperties()
 {
     // ALWAYS call initProperties() of parent first
+    LOGF_INFO("Calling INDI::Telescope::initProperties() %s", "");
     INDI::Telescope::initProperties();
+
+
 
     // Add Debug control so end user can turn debugging/loggin on and off
     addDebugControl();
 
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
-    setSimulation(true);
-
-    // Set telescope capabilities. 0 is for the the number of slew rates that we support. We have none for this simple driver.
-    SetTelescopeCapability(TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT, 0);
+    //LOGF_INFO("Calling setSimulation(true) %s", "");
+    //setSimulation(true);
+   
+/*     LOGF_INFO("serialConnection->registerHandshake %s", "");
+    serialConnection->registerHandshake([&]()
+    {
+        return callHandshake();
+    });
+    registerConnection(serialConnection); */
 
     return true;
+}
+
+bool HASSTelescope::Connect()
+{
+    if (isConnected())
+        return true;
+
+
+    const char*defaultPort = "/dev/ttyACM0";
+
+/*     serialConnection->setDefaultPort(defaultPort);
+    serialConnection->setDefaultBaudRate(Connection::Serial::B_9600);
+    LOGF_INFO("The default Port is: i.e. PortT is: %s", serialConnection->port()); */
+
+    int portFD = serialConnection->getPortFD();
+    
+
+    if (tty_connect(defaultPort, 9600, 8, 0, 1, &portFD) != TTY_OK) {
+        LOGF_INFO("tyy_connect failed.","");
+        return false;
+    } else {
+        LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", portFD);
+    }
+
+    int tty_res = 0;
+    const char *initString = "<0,0>";
+    int *nbytes_written = 0;
+    //int tty_write_string(int fd, const char *buffer, int *nbytes_written);
+    //tty_res = tty_write_string(portFD, initString, nbytes_written);
+    //LOGF_INFO("Sent 0,0 %d bytes written response is %d", nbytes_written, tty_res);
+    
+/*     char buffer[1024];
+    for (int i =0; i < 1024; i++){
+        buffer[i] = 0;
+    }
+    int nbytes_read = 0, error_type;
+    tty_res = tty_read_section(portFD, buffer, '\0', 10, &nbytes_read);  
+    LOGF_INFO("Received %d bytes, response %d (%s)", nbytes_read, tty_res, buffer); */
+
+    bool status = true;
+
+    return status;
 }
 
 /**************************************************************************************
@@ -102,7 +167,14 @@ bool HASSTelescope::initProperties()
 bool HASSTelescope::Handshake()
 {
     // When communicating with a real mount, we check here if commands are receieved
-    // and acknolowedged by the mount. For SimpleScope, we simply return true.
+    // and acknowledged by the mount. 
+
+    int portFD = serialConnection->getPortFD();
+    uint8_t wordSize = serialConnection->getWordSize();
+
+    LOGF_INFO("getPortFD: %s", portFD);
+    LOGF_INFO("getWordSize: %s", wordSize);
+
     return true;
 }
 
@@ -229,7 +301,7 @@ bool HASSTelescope::ReadScopeStatus()
     fs_sexa(DecStr, currentDEC, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
-    //LOGF_INFO("Current RA: %s Current DEC: %s", RAStr, DecStr);
+    LOGF_INFO("ReadScopeStatus():  Current RA: %s Current DEC: %s", RAStr, DecStr);
 
     NewRaDec(currentRA, currentDEC);
     return true;

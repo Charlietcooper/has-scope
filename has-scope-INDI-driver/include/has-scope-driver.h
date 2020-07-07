@@ -22,6 +22,7 @@ class HASSTelescope : public INDI::Telescope
 
   protected:
     bool Handshake() override;
+    bool Connect() override;
 
     const char *getDefaultName() override;
     bool initProperties() override;

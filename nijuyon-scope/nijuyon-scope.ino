@@ -59,25 +59,20 @@ void loop() {
     stepperALT.run();
     
     if (messageCntr > 90000) {
-        //Serial.print("isRunning: "); 
-        //Serial.print("X = ");
-        //Serial.print(stepperAZI.isRunning());
-        //Serial.print(" Y = ");
-        //Serial.println(stepperALT.isRunning());
         Serial.print("Speed: "); 
-        Serial.print("X = ");
+        Serial.print("AZI = ");
         Serial.print(stepperAZI.speed()); 
-        Serial.print(" Y = ");
+        Serial.print(" ALT = ");
         Serial.println(stepperALT.speed()); 
         Serial.print("Current Position: "); 
-        Serial.print("X = ");
+        Serial.print(" AZI = ");
         Serial.print(stepperAZI.currentPosition());   
-        Serial.print(" Y = ");
+        Serial.print(" ALT = ");
         Serial.println(stepperALT.currentPosition());
         Serial.print("Target Position: "); 
-        Serial.print("X = ");
+        Serial.print("AZI = ");
         Serial.print(stepperAZI.targetPosition());   
-        Serial.print(" Y = ");
+        Serial.print(" ALT = ");
         Serial.println(stepperALT.targetPosition());
 
 
