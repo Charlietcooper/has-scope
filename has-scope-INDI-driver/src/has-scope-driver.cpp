@@ -11,16 +11,44 @@
     A simple GOTO telescope that simulator slewing operation.
 */
 
-#include "has-scope-driver.h"
+
+#include <cmath>
+#include <memory>
+#include <string.h>
 
 #include "indicom.h"
 #include "indicontroller.h"
 #include "connectionplugins/connectionserial.h"
 
-#include <cmath>
-#include <memory>
+#include "has-scope-driver.h"
+
+#define BUFFER_SIZE     16 // Maximum message length
+
+double targetRA {0};
+double targetDEC {0};
+double currentRA {0};
+double currentDEC {0};
+
+struct {
+    double RA {0};
+    double Dec {0};
+} current, target;
+
+struct {
+    signed long stepRA {100};
+    signed long stepDec {200};
+} currentSteps, targetSteps;
 
 static std::unique_ptr<HASSTelescope> HASScope(new HASSTelescope());
+
+void hexDump(char *buf, const char *data, int size)
+{
+    for (int i = 0; i < size; i++)
+        sprintf(buf + 3 * i, "%02X ", (unsigned char)data[i]);
+
+    //if (size > 0)
+    //    buf[3 * size - 1] = '\0';
+}
 
 /**************************************************************************************
 ** Return properties of device.
@@ -79,7 +107,7 @@ HASSTelescope::HASSTelescope()
     // We add an additional debug level so we can log verbose scope status
     DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
 
-     double longitude = 175.2793, latitude = -37.7870; // Hamilton New Zealand
+    double longitude = 175.2793, latitude = -37.7870; // Hamilton New Zealand
     double elevation = 40; // meters
 
     SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT);
@@ -121,40 +149,35 @@ bool HASSTelescope::initProperties()
 
 bool HASSTelescope::Connect()
 {
+    const char*defaultPort = "/dev/ttyACM0";
+    int err;
+    int nbytes;
+    char cmd[BUFFER_SIZE];
+    char *ptrCmd = cmd;
+    char hexbuf[3*BUFFER_SIZE];
+    char syntax[5] = "<,>e";
+
+    LOGF_INFO("syntax: %s", syntax);
+    LOGF_INFO("syntax[0]: %c", syntax[0]);
+    LOGF_INFO("syntax[1]: %c", syntax[1]);
+    LOGF_INFO("syntax[2]: %c", syntax[2]);
+    LOGF_INFO("syntax[3]: %c", syntax[3]);
+    
+    cmd[0] = syntax[0];
+    memcpy(ptrCmd + 1, &currentSteps.stepRA, sizeof(currentSteps.stepRA));  
+
+    hexDump(hexbuf, cmd, 1 + sizeof(currentSteps.stepRA));
+    LOGF_INFO("CMD (%s)", hexbuf);
+
     if (isConnected())
         return true;
 
-
-    const char*defaultPort = "/dev/ttyACM0";
-
-/*     serialConnection->setDefaultPort(defaultPort);
-    serialConnection->setDefaultBaudRate(Connection::Serial::B_9600);
-    LOGF_INFO("The default Port is: i.e. PortT is: %s", serialConnection->port()); */
-
-    int portFD = serialConnection->getPortFD();
-    
-
-    if (tty_connect(defaultPort, 9600, 8, 0, 1, &portFD) != TTY_OK) {
+    if (tty_connect(defaultPort, 9600, 8, 0, 1, &fd) != TTY_OK) {
         LOGF_INFO("tyy_connect failed.","");
         return false;
     } else {
-        LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", portFD);
+        LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
     }
-
-    int tty_res = 0;
-    const char *initString = "<0,0>";
-    int *nbytes_written = 0;
-    //int tty_write_string(int fd, const char *buffer, int *nbytes_written);
-    //tty_res = tty_write_string(portFD, initString, nbytes_written);
-    //LOGF_INFO("Sent 0,0 %d bytes written response is %d", nbytes_written, tty_res);
-    
-/*     char buffer[1024];
-    for (int i =0; i < 1024; i++){
-        buffer[i] = 0;
-    }
-    int nbytes_read = 0, error_type;
-    tty_res = tty_read_section(portFD, buffer, '\0', 10, &nbytes_read);  
-    LOGF_INFO("Received %d bytes, response %d (%s)", nbytes_read, tty_res, buffer); */
 
     bool status = true;
 
