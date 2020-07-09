@@ -15,6 +15,7 @@
 #include <cmath>
 #include <memory>
 #include <string.h>
+#include <termios.h>
 
 #include "indicom.h"
 #include "indicontroller.h"
@@ -152,22 +153,17 @@ bool HASSTelescope::Connect()
     const char*defaultPort = "/dev/ttyACM0";
     int err;
     int nbytes;
+    int cmd_nbytes;
     char cmd[BUFFER_SIZE];
     char *ptrCmd = cmd;
     char hexbuf[3*BUFFER_SIZE];
-    char syntax[5] = "<,>e";
+   
+    cmd_nbytes = sprintf(cmd, "<%ld,%ld>", currentSteps.stepDec, currentSteps.stepRA);
+    LOGF_INFO("cmd buffer is: %s", cmd);
+    cmd_nbytes++;
 
-    LOGF_INFO("syntax: %s", syntax);
-    LOGF_INFO("syntax[0]: %c", syntax[0]);
-    LOGF_INFO("syntax[1]: %c", syntax[1]);
-    LOGF_INFO("syntax[2]: %c", syntax[2]);
-    LOGF_INFO("syntax[3]: %c", syntax[3]);
-    
-    cmd[0] = syntax[0];
-    memcpy(ptrCmd + 1, &currentSteps.stepRA, sizeof(currentSteps.stepRA));  
-
-    hexDump(hexbuf, cmd, 1 + sizeof(currentSteps.stepRA));
-    LOGF_INFO("CMD (%s)", hexbuf);
+    hexDump(hexbuf, cmd, cmd_nbytes);
+    LOGF_INFO("CMD as Hex (%s)", hexbuf);
 
     if (isConnected())
         return true;
@@ -177,6 +173,16 @@ bool HASSTelescope::Connect()
         return false;
     } else {
         LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
+    }
+
+    tcflush(fd, TCIOFLUSH);
+
+    if ((err = tty_write(fd, cmd, cmd_nbytes, &nbytes)) != TTY_OK)
+    {
+        LOGF_INFO("tty_write Error, %i bytes", nbytes);
+        return -5;
+    } else {
+        LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
     }
 
     bool status = true;
