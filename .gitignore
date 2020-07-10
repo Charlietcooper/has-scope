@@ -58,6 +58,7 @@ tramp
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+.vscode/c_cpp_properties.json
 
 ##### CMake
 CMakeLists.txt.user

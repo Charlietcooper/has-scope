@@ -21,9 +21,8 @@ class HASSTelescope : public INDI::Telescope
     HASSTelescope();
 
   protected:
-    bool Handshake() override;
     bool Connect() override;
-
+    bool Handshake() override;
     const char *getDefaultName() override;
     bool initProperties() override;
 
@@ -31,6 +30,8 @@ class HASSTelescope : public INDI::Telescope
     bool ReadScopeStatus() override;
     bool Goto(double, double) override;
     bool Abort() override;
+    int ReadResponse();
+    bool SendCommand(char cmd_op);
 
   private:
 

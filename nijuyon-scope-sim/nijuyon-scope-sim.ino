@@ -17,6 +17,7 @@ const float max_speed_SP = 900.0; // Steps per second (as per stepper motor libr
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
 
 const byte numChars = 32;
+const byte cmdChars = 2;
 boolean newData = false;
 
 long RecdAZI = 0;
@@ -28,6 +29,11 @@ long messageCntr = 0;
 
 char receivedChars[numChars];   // an array to store the received data
 char tempChars[numChars];       // temporary array for use when parsing
+char RecdCMD;
+bool targetCMD = false;
+bool sendposCMD = false;
+
+
 
 AccelStepper stepperAZI(AccelStepper::DRIVER, AZI_STEP, AZI_DIR);
 AccelStepper stepperALT(AccelStepper::DRIVER, ALT_STEP, ALT_DIR);
@@ -47,13 +53,14 @@ void loop() {
 
     // Check for time update messages on the serial bus.
     recvWithStartEndMarkers(); // Check for new data on the serial bus
-    if (newData == true) { // if a ne   w complete message has been received:
+    if (newData == true) { // if a new complete message has been received:
         strcpy(tempChars, receivedChars);
             // this temporary copy is necessary to protect the original data
             //   because strtok() used in parseData() replaces the commas with \0
         parseData();
-        showParsedData();
-        issueDriverCommand();
+        //showParsedData();
+        if (sendposCMD) { sendCurrentPosition(); sendposCMD = false; }
+        if (targetCMD) { issueDriverCommand(); targetCMD = false; }
         newData = false;
     }
     
@@ -95,22 +102,22 @@ void issueDriverCommand() {
   if (RecdAZI != AZI_SP) { 
     AZI_SP = RecdAZI;
     stepperAZI.moveTo(AZI_SP);
-     Serial.print("Azimuth move to: ");
-    Serial.println(AZI_SP);
+    //Serial.print("Azimuth move to: ");
+    //Serial.println(AZI_SP);
   }
   if (RecdALT != ALT_SP) { 
     ALT_SP = RecdALT;
     stepperALT.moveTo(ALT_SP);
-    Serial.print("Altitude move to: ");
-    Serial.println(ALT_SP);
+    //Serial.print("Altitude move to: ");
+    //Serial.println(ALT_SP);
   }
-  Serial.println("-------------------------");
+  //Serial.println("-------------------------");
 }
 
 /* 
  *  Functions for received serial communication
  *  
- *  Expects a packet like: <45,-3000>\0
+ *  Expects a packet like: <T,45,-3000>\0
  */
 
 void recvWithStartEndMarkers() {
@@ -150,23 +157,41 @@ void parseData() {      // split the data into its parts
     char * strtokIndx; // this is used by strtok() as an index
 
     // print the received messages
-    Serial.println("The Uno received:");
-    Serial.println(tempChars);
-    Serial.println("-------------------------");
-    
+    //Serial.print("<");
+    //Serial.print(tempChars);
+    //Serial.println(">"); 
+        
     strtokIndx = strtok(tempChars,",");      // get the first part - the string
-    RecdAZI = atol(strtokIndx); // convert and copy it to the received X steps
+    RecdCMD = *strtokIndx; // convert and copy it to the received command.
 
     strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-    RecdALT = atol(strtokIndx);
-       
+    RecdAZI = atol(strtokIndx); 
+    
+    strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
+    RecdALT = atol(strtokIndx); 
+
+    if (RecdCMD == 'T') {
+      targetCMD = true;
+    } else if (RecdCMD == 'R') {
+      sendposCMD = true;
+    }
+
+}
+
+void sendCurrentPosition() {
+    Serial.print("<U,");
+    Serial.print(stepperAZI.currentPosition());
+    Serial.print(",");
+    Serial.print(stepperALT.currentPosition());
+    Serial.println(">");
 }
 
 void showParsedData() {
+    Serial.print("Received CMD: ");
+    Serial.println(RecdCMD);
     Serial.print("Received AZI: ");
     Serial.println(RecdAZI);
     Serial.print("Received ALT: ");
     Serial.println(RecdALT);
-    Serial.println("-------------------------");
    
 }
