@@ -11,6 +11,6 @@ include_directories(include)
  
 add_executable(has-scope-driver src/has-scope-driver.cpp)
 
-target_link_libraries(has-scope-driver indidriver)
+target_link_libraries(has-scope-driver indidriver nova)
 
 set(CMAKE_BUILD_TYPE Debug)

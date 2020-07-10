@@ -15,6 +15,14 @@
 
 #include "inditelescope.h"
 
+struct lnh_equ_posn;
+struct lnh_lnlat_posn;
+struct ln_equ_posn;
+struct ln_hrz_posn;
+struct lnh_hrz_posn;
+struct ln_lnlat_posn;
+struct ln_date;
+
 class HASSTelescope : public INDI::Telescope
 {
   public:

@@ -53,27 +53,17 @@ struct {
 } currentSteps, targetSteps;
 
 //lnh_equ_posn hobject, hequ;
-struct lnh_lnlat_posn hobserver;
 //ln_equ_posn object, equ;
-//ln_hrz_posn hrz;
 //lnh_hrz_posn hhrz;
-//ln_lnlat_posn observer;
-//ln_date date;
+//
+
+lnh_lnlat_posn hobserver;
+ln_lnlat_posn observer;
+ln_hrz_posn hrz_posn;
+ln_equ_posn curr_equ_posn;
+ln_date date;
 double JD;
 
-/* 
- * observers position
- * longitude is measured positively eastwards
- * i.e. Long 5d36m30W (Leon, Spain) = 354d24m30
- * Lat for Leon = Lat 42d35m40 N        
- */
-
-hobserver.lng.degrees = -5;
-hobserver.lng.minutes = 36;
-hobserver.lng.seconds = 30.0;
-hobserver.lat.degrees = 42;
-hobserver.lat.minutes = 35;
-hobserver.lat.seconds = 40.0;
 
 static std::unique_ptr<HASSTelescope> HASScope(new HASSTelescope());
 
@@ -141,16 +131,11 @@ void ISSnoopDevice(XMLEle *root)
 HASSTelescope::HASSTelescope()
 {
     // We add an additional debug level so we can log verbose scope status
-    DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
-
-    double longitude = 175.2793, latitude = -37.7870; // Hamilton New Zealand
-    double elevation = 40; // meters
+    //DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
 
     SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT);
-    //setTelescopeConnection(CONNECTION_SERIAL);
-    updateLocation(latitude, longitude, elevation);
 
-    LOG_DEBUG("Initializing HAS Telescope...");
+    LOGF_INFO("Initializing HAS Telescope...","");
 
 }
 
@@ -163,23 +148,47 @@ bool HASSTelescope::initProperties()
     LOGF_INFO("Calling INDI::Telescope::initProperties() %s", "");
     INDI::Telescope::initProperties();
 
-
-
     // Add Debug control so end user can turn debugging/loggin on and off
     addDebugControl();
+
+        /* 
+     * observers position
+     * longitude is measured positively eastwards   
+     * 
+     * HAS Observatory, Hamilton, New Zealand
+     */
+
+    // For INDI
+    double longitude = 175.2146, latitude = -37.7735; 
+    double elevation = 40; // meters
+
+    // For libnova. Observer position (equatorial coordinates)
+    hobserver.lng.degrees = 175;
+    hobserver.lng.minutes = 12;
+    hobserver.lng.seconds = 52.56;
+    hobserver.lat.degrees = -37;
+    hobserver.lat.minutes = 46;
+    hobserver.lat.seconds = 24.60;
+
+    ln_hlnlat_to_lnlat(&hobserver, &observer);
+
+    updateLocation(latitude, longitude, elevation);
+
+    // Set initial position of the telescope
+    // Forks horizontal, nose resting on the bridge.
+    hrz_posn.az = 180;
+    hrz_posn.alt = 5;
+    JD = ln_get_julian_from_sys();
+
+    ln_get_equ_from_hrz(&hrz_posn, &observer, JD, &curr_equ_posn);
+
+    NewRaDec(curr_equ_posn.ra, curr_equ_posn.ra);
 
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
     //LOGF_INFO("Calling setSimulation(true) %s", "");
     //setSimulation(true);
    
-/*     LOGF_INFO("serialConnection->registerHandshake %s", "");
-    serialConnection->registerHandshake([&]()
-    {
-        return callHandshake();
-    });
-    registerConnection(serialConnection); */
-
     return true;
 }
 
@@ -210,7 +219,6 @@ bool HASSTelescope::SendCommand(char cmd_op)
     }
 
     ReadResponse();
-
 }
 
 int HASSTelescope::ReadResponse()
@@ -259,6 +267,7 @@ int HASSTelescope::ReadResponse()
  
         }
     }
+    tcflush(fd, TCIOFLUSH);
     LOGF_INFO("Finished read. Received: %s", rbuffer);
 }
 
@@ -331,9 +340,6 @@ bool HASSTelescope::Goto(double ra, double dec)
     // Inform client we are slewing to a new position
     LOGF_INFO("Slewing to RA: %s - DEC: %s", RAStr, DecStr);
 
-
-
-
     // Success!
     return true;
 }
@@ -351,12 +357,12 @@ bool HASSTelescope::Abort()
 ***************************************************************************************/
 bool HASSTelescope::ReadScopeStatus()
 {
-    static struct timeval ltv { 0, 0 };
+    /* static struct timeval ltv { 0, 0 };
     struct timeval tv { 0, 0 };
     double dt = 0, da_ra = 0, da_dec = 0, dx = 0, dy = 0;
     int nlocked;
 
-    /* update elapsed time since last poll, don't presume exactly POLLMS */
+    // update elapsed time since last poll, don't presume exactly POLLMS 
     gettimeofday(&tv, nullptr);
 
     if (ltv.tv_sec == 0 && ltv.tv_usec == 0)
@@ -369,7 +375,7 @@ bool HASSTelescope::ReadScopeStatus()
     da_ra  = SLEW_RATE * dt;
     da_dec = SLEW_RATE * dt;
 
-    /* Process per current state. We check the state of EQUATORIAL_EOD_COORDS_REQUEST and act acoordingly */
+    // Process per current state. We check the state of EQUATORIAL_EOD_COORDS_REQUEST and act acoordingly 
     switch (TrackState)
     {
         case SCOPE_SLEWING:
@@ -421,17 +427,27 @@ bool HASSTelescope::ReadScopeStatus()
 
         default:
             break;
-    }
+    } */
+
+    SendCommand(REQUESTPOS_CMD);
+    ReadResponse();
 
     char RAStr[64]={0}, DecStr[64]={0};
 
+    hrz_posn.az = 180;
+    hrz_posn.alt = 5;
+    JD = ln_get_julian_from_sys();
+
+    ln_get_equ_from_hrz(&hrz_posn, &observer, JD, &curr_equ_posn);
+
+    NewRaDec(curr_equ_posn.ra, curr_equ_posn.ra);
+
     // Parse the RA/DEC into strings
-    fs_sexa(RAStr, currentRA, 2, 3600);
-    fs_sexa(DecStr, currentDEC, 2, 3600);
+    fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
+    fs_sexa(DecStr, curr_equ_posn.ra, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
     LOGF_INFO("ReadScopeStatus():  Current RA: %s Current DEC: %s", RAStr, DecStr);
 
-    NewRaDec(currentRA, currentDEC);
     return true;
 }
