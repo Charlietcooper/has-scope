@@ -17,13 +17,25 @@
 #include <string.h>
 #include <termios.h>
 
+#include <libnova/transform.h>
+#include <libnova/julian_day.h>
+#include <libnova/utility.h>
+#include <libnova/ln_types.h>
+
 #include "indicom.h"
 #include "indicontroller.h"
 #include "connectionplugins/connectionserial.h"
 
 #include "has-scope-driver.h"
 
-#define BUFFER_SIZE     16 // Maximum message length
+#define BUFFER_SIZE     40  // Maximum message length
+#define ARDUINO_TIMEOUT 5   // fd timeout in seconds
+#define START_BYTE 0x3C
+#define END_BYTE 0x3E
+
+// Commands available
+#define TARGET_CMD  'T' 
+#define REQUESTPOS_CMD  'R' // Request the current position (in number of steps).
 
 double targetRA {0};
 double targetDEC {0};
@@ -39,6 +51,29 @@ struct {
     signed long stepRA {100};
     signed long stepDec {200};
 } currentSteps, targetSteps;
+
+//lnh_equ_posn hobject, hequ;
+struct lnh_lnlat_posn hobserver;
+//ln_equ_posn object, equ;
+//ln_hrz_posn hrz;
+//lnh_hrz_posn hhrz;
+//ln_lnlat_posn observer;
+//ln_date date;
+double JD;
+
+/* 
+ * observers position
+ * longitude is measured positively eastwards
+ * i.e. Long 5d36m30W (Leon, Spain) = 354d24m30
+ * Lat for Leon = Lat 42d35m40 N        
+ */
+
+hobserver.lng.degrees = -5;
+hobserver.lng.minutes = 36;
+hobserver.lng.seconds = 30.0;
+hobserver.lat.degrees = 42;
+hobserver.lat.minutes = 35;
+hobserver.lat.seconds = 40.0;
 
 static std::unique_ptr<HASSTelescope> HASScope(new HASSTelescope());
 
@@ -148,9 +183,8 @@ bool HASSTelescope::initProperties()
     return true;
 }
 
-bool HASSTelescope::Connect()
+bool HASSTelescope::SendCommand(char cmd_op)
 {
-    const char*defaultPort = "/dev/ttyACM0";
     int err;
     int nbytes;
     int cmd_nbytes;
@@ -158,22 +192,12 @@ bool HASSTelescope::Connect()
     char *ptrCmd = cmd;
     char hexbuf[3*BUFFER_SIZE];
    
-    cmd_nbytes = sprintf(cmd, "<%ld,%ld>", currentSteps.stepDec, currentSteps.stepRA);
+    cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>", cmd_op, currentSteps.stepDec, currentSteps.stepRA);
     LOGF_INFO("cmd buffer is: %s", cmd);
     cmd_nbytes++;
 
     hexDump(hexbuf, cmd, cmd_nbytes);
     LOGF_INFO("CMD as Hex (%s)", hexbuf);
-
-    if (isConnected())
-        return true;
-
-    if (tty_connect(defaultPort, 9600, 8, 0, 1, &fd) != TTY_OK) {
-        LOGF_INFO("tyy_connect failed.","");
-        return false;
-    } else {
-        LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
-    }
 
     tcflush(fd, TCIOFLUSH);
 
@@ -185,8 +209,78 @@ bool HASSTelescope::Connect()
         LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
     }
 
-    bool status = true;
+    ReadResponse();
 
+}
+
+int HASSTelescope::ReadResponse()
+{
+    int nbytes = 0;
+    int err = TTY_OK;
+    char rbuffer[BUFFER_SIZE];
+    int bytesToStart = 0;
+    rbuffer[0] = 0x00;
+
+    // Look for a starting byte until time out occurs or BUFFER_SIZE bytes were read
+    while (*rbuffer != START_BYTE && err == TTY_OK)
+        err = tty_read(fd, rbuffer, 1, ARDUINO_TIMEOUT, &nbytes);
+        LOGF_INFO("Start byte? Read: %c", rbuffer[0]);
+        bytesToStart++;
+
+    LOGF_INFO("Found START_BYTE. tty_read of %i bytes.", bytesToStart);
+
+    bool recvInProgress = false;
+    bool newData = false;
+    int ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+
+    nbytes = 0;
+    recvInProgress = true;
+    while (newData == false) {
+        err = tty_read(fd, &rc, 1, ARDUINO_TIMEOUT, &nbytes);
+        //LOGF_INFO("Read: %c, byte number %i", rc, ndx);
+        if (recvInProgress == true) {
+            //LOGF_INFO("rc %c, endMarker %c", rc, endMarker);
+            if (rc != endMarker) {
+                rbuffer[ndx] = rc;
+                ndx++;
+                if (ndx >= BUFFER_SIZE) {
+                    ndx = BUFFER_SIZE - 1;
+                }
+            }
+            else {
+                rbuffer[ndx] = '\0'; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+            }
+ 
+        }
+    }
+    LOGF_INFO("Finished read. Received: %s", rbuffer);
+}
+
+bool HASSTelescope::Connect()
+{
+    const char*defaultPort = "/dev/ttyACM0";
+    int err = TTY_OK;
+
+    if (isConnected())
+        return true;
+
+    if (tty_connect(defaultPort, 9600, 8, 0, 1, &fd) != TTY_OK) {
+        LOGF_INFO("tyy_connect failed.","");
+        return false;
+    } else {
+        LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
+    }
+
+    SendCommand(REQUESTPOS_CMD);
+    ReadResponse();
+
+    bool status = true;
     return status;
 }
 
@@ -203,6 +297,9 @@ bool HASSTelescope::Handshake()
 
     LOGF_INFO("getPortFD: %s", portFD);
     LOGF_INFO("getWordSize: %s", wordSize);
+
+    SendCommand(REQUESTPOS_CMD);
+
 
     return true;
 }
@@ -233,6 +330,9 @@ bool HASSTelescope::Goto(double ra, double dec)
 
     // Inform client we are slewing to a new position
     LOGF_INFO("Slewing to RA: %s - DEC: %s", RAStr, DecStr);
+
+
+
 
     // Success!
     return true;
