@@ -21,6 +21,7 @@
 #include <libnova/julian_day.h>
 #include <libnova/utility.h>
 #include <libnova/ln_types.h>
+#include <libnova/sidereal_time.h>
 
 #include "indicom.h"
 #include "indicontroller.h"
@@ -164,7 +165,6 @@ bool HASSTelescope::initProperties()
 
     double sidereal;
 
-
     // For libnova. Observer position (equatorial coordinates)
     observer.lat = latitude;
     observer.lng = longitude;
@@ -173,19 +173,19 @@ bool HASSTelescope::initProperties()
 
     // Set initial position of the telescope
     // Forks horizontal, nose resting on the bridge.
-    hrz_posn.az = 180;
-    hrz_posn.alt = 0;
     JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
-    sidereal = ln_get_mean_sidereal_time (JD);
-
-    ln_get_equ_from_hrz(&hrz_posn, &observer, JD, &curr_equ_posn);
+    sidereal = ln_get_apparent_sidereal_time(JD);
+    curr_equ_posn.dec = 35.0;
+    curr_equ_posn.ra = (sidereal / 24.0 * 360) + observer.lng; 
 
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+
     LOGF_INFO("\n------------------------------------------------------","");
-    LOGF_INFO("Set initial position. Alt %f, Azi %f", hrz_posn.alt, hrz_posn.az);
     LOGF_INFO("Set initial position. RA %f, DEC %f", curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("Right Ascension in hours: %f", curr_equ_posn.ra / 360.0 * 24.0);
     LOGF_INFO("System Julian date is %f", JD);
+    LOGF_INFO("System Sidereal time is %f", sidereal);
     LOGF_INFO("System UTC Date is %i-%i-%i %i:%i:%f", date.years, date.months, date.days, date.hours, date.minutes, date.seconds);
     LOGF_INFO("Observer position is Lat %f, Long %f", observer.lat, observer.lng);
 
@@ -258,8 +258,6 @@ int HASSTelescope::ReadResponse()
         bytesToStart++;
 
     LOGF_INFO("Found START_BYTE. A tty_read of %i bytes to find start byte.", bytesToStart);
-
-
 
     nbytes = 0;
     recvInProgress = true;
@@ -376,17 +374,17 @@ bool HASSTelescope::Abort()
 ***************************************************************************************/
 bool HASSTelescope::ReadScopeStatus()
 {
+    double sidereal;
+
     LOGF_INFO("---ReadScopeStatus()---", "");
     SendCommand(REQUESTPOS_CMD);
     ReadResponse();
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    hrz_posn.az = 180;
-    hrz_posn.alt = 0;
-    JD = ln_get_julian_from_sys();
-
-    ln_get_equ_from_hrz(&hrz_posn, &observer, JD, &curr_equ_posn);
+    sidereal = ln_get_apparent_sidereal_time (JD);
+    curr_equ_posn.dec = 35.0;
+    curr_equ_posn.ra = (sidereal / 24.0 * 360) + observer.lng; 
 
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
 
