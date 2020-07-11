@@ -134,7 +134,7 @@ HASSTelescope::HASSTelescope()
     //DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
 
     SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT);
-
+    LOGF_INFO("\n------------------------------------------------------","");
     LOGF_INFO("Initializing HAS Telescope...","");
 
 }
@@ -162,27 +162,32 @@ bool HASSTelescope::initProperties()
     double longitude = 175.2146, latitude = -37.7735; 
     double elevation = 40; // meters
 
-    // For libnova. Observer position (equatorial coordinates)
-    hobserver.lng.degrees = 175;
-    hobserver.lng.minutes = 12;
-    hobserver.lng.seconds = 52.56;
-    hobserver.lat.degrees = -37;
-    hobserver.lat.minutes = 46;
-    hobserver.lat.seconds = 24.60;
+    double sidereal;
 
-    ln_hlnlat_to_lnlat(&hobserver, &observer);
+
+    // For libnova. Observer position (equatorial coordinates)
+    observer.lat = latitude;
+    observer.lng = longitude;
 
     updateLocation(latitude, longitude, elevation);
 
     // Set initial position of the telescope
     // Forks horizontal, nose resting on the bridge.
     hrz_posn.az = 180;
-    hrz_posn.alt = 5;
+    hrz_posn.alt = 0;
     JD = ln_get_julian_from_sys();
+    ln_get_date_from_sys(&date);
+    sidereal = ln_get_mean_sidereal_time (JD);
 
     ln_get_equ_from_hrz(&hrz_posn, &observer, JD, &curr_equ_posn);
 
-    NewRaDec(curr_equ_posn.ra, curr_equ_posn.ra);
+    NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("\n------------------------------------------------------","");
+    LOGF_INFO("Set initial position. Alt %f, Azi %f", hrz_posn.alt, hrz_posn.az);
+    LOGF_INFO("Set initial position. RA %f, DEC %f", curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("System Julian date is %f", JD);
+    LOGF_INFO("System UTC Date is %i-%i-%i %i:%i:%f", date.years, date.months, date.days, date.hours, date.minutes, date.seconds);
+    LOGF_INFO("Observer position is Lat %f, Long %f", observer.lat, observer.lng);
 
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
@@ -200,7 +205,9 @@ bool HASSTelescope::SendCommand(char cmd_op)
     char cmd[BUFFER_SIZE];
     char *ptrCmd = cmd;
     char hexbuf[3*BUFFER_SIZE];
-   
+
+    LOGF_INFO("---Begin SendCommand()---","");
+
     cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>", cmd_op, currentSteps.stepDec, currentSteps.stepRA);
     LOGF_INFO("cmd buffer is: %s", cmd);
     cmd_nbytes++;
@@ -208,7 +215,8 @@ bool HASSTelescope::SendCommand(char cmd_op)
     hexDump(hexbuf, cmd, cmd_nbytes);
     LOGF_INFO("CMD as Hex (%s)", hexbuf);
 
-    tcflush(fd, TCIOFLUSH);
+    //tcflush(fd, TCIOFLUSH);
+    tcflush(fd, TCOFLUSH);
 
     if ((err = tty_write(fd, cmd, cmd_nbytes, &nbytes)) != TTY_OK)
     {
@@ -218,7 +226,6 @@ bool HASSTelescope::SendCommand(char cmd_op)
         LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
     }
 
-    ReadResponse();
 }
 
 int HASSTelescope::ReadResponse()
@@ -227,15 +234,8 @@ int HASSTelescope::ReadResponse()
     int err = TTY_OK;
     char rbuffer[BUFFER_SIZE];
     int bytesToStart = 0;
-    rbuffer[0] = 0x00;
-
-    // Look for a starting byte until time out occurs or BUFFER_SIZE bytes were read
-    while (*rbuffer != START_BYTE && err == TTY_OK)
-        err = tty_read(fd, rbuffer, 1, ARDUINO_TIMEOUT, &nbytes);
-        LOGF_INFO("Start byte? Read: %c", rbuffer[0]);
-        bytesToStart++;
-
-    LOGF_INFO("Found START_BYTE. tty_read of %i bytes.", bytesToStart);
+    //rbuffer[0] = 0x00;
+    memset(&rbuffer[0], 0, sizeof(rbuffer));
 
     bool recvInProgress = false;
     bool newData = false;
@@ -243,6 +243,23 @@ int HASSTelescope::ReadResponse()
     char startMarker = '<';
     char endMarker = '>';
     char rc;
+    char hexbuf[3*BUFFER_SIZE];
+
+    LOGF_INFO("---Begin ReadResponse()---","");
+
+    hexDump(hexbuf, rbuffer, BUFFER_SIZE);
+    LOGF_INFO("After clearing rbuffer it is: %s", hexbuf);
+    //LOGF_INFO("After clearing rbuffer it is: %s", rbuffer);
+
+    // Look for a starting byte until time out occurs or BUFFER_SIZE bytes were read
+    while (*rbuffer != START_BYTE && err == TTY_OK)
+        err = tty_read(fd, rbuffer, 1, ARDUINO_TIMEOUT, &nbytes);
+        LOGF_INFO("Start byte? Read: %c", rbuffer[0]);
+        bytesToStart++;
+
+    LOGF_INFO("Found START_BYTE. A tty_read of %i bytes to find start byte.", bytesToStart);
+
+
 
     nbytes = 0;
     recvInProgress = true;
@@ -267,8 +284,11 @@ int HASSTelescope::ReadResponse()
  
         }
     }
-    tcflush(fd, TCIOFLUSH);
+    //tcflush(fd, TCIOFLUSH);
     LOGF_INFO("Finished read. Received: %s", rbuffer);
+
+    hexDump(hexbuf, rbuffer, BUFFER_SIZE);
+    LOGF_INFO("rbuffer Hex (%s)", hexbuf);
 }
 
 bool HASSTelescope::Connect()
@@ -286,8 +306,7 @@ bool HASSTelescope::Connect()
         LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
     }
 
-    SendCommand(REQUESTPOS_CMD);
-    ReadResponse();
+    ReadScopeStatus();
 
     bool status = true;
     return status;
@@ -308,7 +327,7 @@ bool HASSTelescope::Handshake()
     LOGF_INFO("getWordSize: %s", wordSize);
 
     SendCommand(REQUESTPOS_CMD);
-
+    ReadResponse();
 
     return true;
 }
@@ -357,97 +376,26 @@ bool HASSTelescope::Abort()
 ***************************************************************************************/
 bool HASSTelescope::ReadScopeStatus()
 {
-    /* static struct timeval ltv { 0, 0 };
-    struct timeval tv { 0, 0 };
-    double dt = 0, da_ra = 0, da_dec = 0, dx = 0, dy = 0;
-    int nlocked;
-
-    // update elapsed time since last poll, don't presume exactly POLLMS 
-    gettimeofday(&tv, nullptr);
-
-    if (ltv.tv_sec == 0 && ltv.tv_usec == 0)
-        ltv = tv;
-
-    dt  = tv.tv_sec - ltv.tv_sec + (tv.tv_usec - ltv.tv_usec) / 1e6;
-    ltv = tv;
-
-    // Calculate how much we moved since last time
-    da_ra  = SLEW_RATE * dt;
-    da_dec = SLEW_RATE * dt;
-
-    // Process per current state. We check the state of EQUATORIAL_EOD_COORDS_REQUEST and act acoordingly 
-    switch (TrackState)
-    {
-        case SCOPE_SLEWING:
-            // Wait until we are "locked" into positon for both RA & DEC axis
-            nlocked = 0;
-
-            // Calculate diff in RA
-            dx = targetRA - currentRA;
-
-            // If diff is very small, i.e. smaller than how much we changed since last time, then we reached target RA.
-            if (fabs(dx)  <= da_ra)
-            
-            {
-                currentRA = targetRA;
-                nlocked++;
-            }
-            // Otherwise, increase RA
-            else if (dx > 0)
-                currentRA += da_ra ;
-            // Otherwise, decrease RA
-            else
-                currentRA -= da_ra;
-
-            // Calculate diff in DEC
-            dy = targetDEC - currentDEC;
-
-            // If diff is very small, i.e. smaller than how much we changed since last time, then we reached target DEC.
-            if (fabs(dy) <= da_dec)
-            {
-                currentDEC = targetDEC;
-                nlocked++;
-            }
-            // Otherwise, increase DEC
-            else if (dy > 0)
-                currentDEC += da_dec;
-            // Otherwise, decrease DEC
-            else
-                currentDEC -= da_dec;
-
-            // Let's check if we reached position for both RA/DEC
-            if (nlocked == 2)
-            {
-                // Let's set state to TRACKING
-                TrackState = SCOPE_TRACKING;
-
-                LOG_INFO("Telescope slew is complete. Tracking...");
-            }
-            break;
-
-        default:
-            break;
-    } */
-
+    LOGF_INFO("---ReadScopeStatus()---", "");
     SendCommand(REQUESTPOS_CMD);
     ReadResponse();
 
     char RAStr[64]={0}, DecStr[64]={0};
 
     hrz_posn.az = 180;
-    hrz_posn.alt = 5;
+    hrz_posn.alt = 0;
     JD = ln_get_julian_from_sys();
 
     ln_get_equ_from_hrz(&hrz_posn, &observer, JD, &curr_equ_posn);
 
-    NewRaDec(curr_equ_posn.ra, curr_equ_posn.ra);
+    NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
-    fs_sexa(DecStr, curr_equ_posn.ra, 2, 3600);
+    fs_sexa(DecStr, curr_equ_posn.dec, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
-    LOGF_INFO("ReadScopeStatus():  Current RA: %s Current DEC: %s", RAStr, DecStr);
+    LOGF_INFO("ReadScopeStatus() Current RA: %s Current DEC: %s", RAStr, DecStr);
 
     return true;
 }
