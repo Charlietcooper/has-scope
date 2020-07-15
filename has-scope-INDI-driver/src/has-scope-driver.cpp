@@ -16,6 +16,7 @@
 #include <memory>
 #include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include <vector>
 #include <string>
@@ -33,6 +34,7 @@
 
 #include "has-scope-driver.h"
 
+#define POLLMS 3000     // Poll time in milliseconds
 #define BUFFER_SIZE     40  // Maximum message length
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
@@ -44,19 +46,14 @@
 #define TARGET_CMD  'T' 
 #define REQUESTPOS_CMD  'R' // Request the current position (in number of steps).
 
-double targetRA {0};
-double targetDEC {0};
-double currentRA {0};
-double currentDEC {0};
-
 struct {
     double RA {0};
     double Dec {0};
-} current, target, startPos;
+} current, target, startPos; // RA in hours
 
 struct {
-    signed long stepRA {100};
-    signed long stepDec {200};
+    signed long stepRA {0};
+    signed long stepDec {0};
 } currentSteps, targetSteps;
 
 lnh_lnlat_posn hobserver;
@@ -153,6 +150,10 @@ bool HASSTelescope::initProperties()
     // Add Debug control so end user can turn debugging/loggin on and off
     addDebugControl();
 
+    SetTimer(POLLMS);
+
+    TrackState = SCOPE_IDLE;
+
     /* 
      * observers position
      * longitude is measured positively eastwards   
@@ -178,21 +179,24 @@ bool HASSTelescope::initProperties()
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
     curr_equ_posn.dec = 35.0;
-    curr_equ_posn.ra = (sidereal / 24.0 * 360) + observer.lng; 
+    // libnova works in decimal degrees for RA
+    curr_equ_posn.ra = ((sidereal / 24 * 360) + observer.lng) / 360 * 24; 
     if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
 
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
 
-    startPos.RA = curr_equ_posn.ra;
+    startPos.RA = curr_equ_posn.ra / 360 * 24; // RA in hours
     startPos.Dec = curr_equ_posn.dec;
 
     LOGF_INFO("\n------------------------------------------------------","");
     LOGF_INFO("Set initial position. RA %f, DEC %f", curr_equ_posn.ra, curr_equ_posn.dec);
-    LOGF_INFO("Right Ascension in hours: %f", curr_equ_posn.ra / 360.0 * 24.0);
+    LOGF_INFO("Right Ascension in hours: %f", curr_equ_posn.ra);
     LOGF_INFO("System Julian date is %f", JD);
     LOGF_INFO("System Sidereal time is %f", sidereal);
     LOGF_INFO("System UTC Date is %i-%i-%i %i:%i:%f", date.years, date.months, date.days, date.hours, date.minutes, date.seconds);
     LOGF_INFO("Observer position is Latitude %f, Long %f", observer.lat, observer.lng);
+    LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
+    LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
 
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
@@ -202,7 +206,7 @@ bool HASSTelescope::initProperties()
     return true;
 }
 
-bool HASSTelescope::SendCommand(char cmd_op)
+bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long stepDec)
 {
     int err;
     int nbytes;
@@ -213,7 +217,7 @@ bool HASSTelescope::SendCommand(char cmd_op)
 
     LOGF_INFO("---Begin SendCommand()---","");
 
-    cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>", cmd_op, currentSteps.stepDec, currentSteps.stepRA);
+    cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>", cmd_op, stepRA, stepDec);
     LOGF_INFO("cmd buffer is: %s", cmd);
     cmd_nbytes++;
 
@@ -350,7 +354,7 @@ bool HASSTelescope::Handshake()
     LOGF_INFO("getPortFD: %s", portFD);
     LOGF_INFO("getWordSize: %s", wordSize);
 
-    SendCommand(REQUESTPOS_CMD);
+    SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
     ReadResponse();
 
     return true;
@@ -369,19 +373,45 @@ const char *HASSTelescope::getDefaultName()
 ***************************************************************************************/
 bool HASSTelescope::Goto(double ra, double dec)
 {
-    targetRA  = ra;
-    targetDEC = dec;
     char RAStr[64]={0}, DecStr[64]={0};
+    double diffRA, diffDec;
+    signed long diffStepRA, diffStepDec;
 
+    LOGF_INFO("--- Goto() ---", "");
+
+    target.RA  = ra;
+    target.Dec = dec;
+
+    LOGF_INFO("target.RA: %f (hrs), target.Dec: %f", target.RA, target.Dec);
+    
     // Parse the RA/DEC into strings
-    fs_sexa(RAStr, targetRA, 2, 3600);
-    fs_sexa(DecStr, targetDEC, 2, 3600);
+    fs_sexa(RAStr, target.RA, 2, 3600);
+    fs_sexa(DecStr, target.Dec, 2, 3600);
+
+    // Calculate difference between target and current position.
+    diffRA = target.RA - EqN[AXIS_RA].value;
+    diffDec = target.Dec - EqN[AXIS_DE].value;
+    LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
+
+    diffStepRA = diffRA * PULSE_PER_RA;
+    diffStepDec = diffDec * PULSE_PER_DEC;
+    LOGF_INFO("diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
+
+    targetSteps.stepRA = currentSteps.stepRA + diffStepRA;
+    targetSteps.stepDec = currentSteps.stepDec - diffStepDec;
+    LOGF_INFO("targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
+
+    // Send new target to Arduino
+    SendCommand(TARGET_CMD, targetSteps.stepRA, targetSteps.stepDec);
 
     // Mark state as slewing
     TrackState = SCOPE_SLEWING;
 
     // Inform client we are slewing to a new position
-    LOGF_INFO("Slewing to RA: %s - DEC: %s", RAStr, DecStr);
+    //LOGF_INFO("Slewing to RA: %s - DEC: %s", RAStr, DecStr);
+    LOGF_INFO("Slewing to stepRA %i, stepDec %i", targetSteps.stepRA, targetSteps.stepDec);
+
+    TrackState = SCOPE_SLEWING;
 
     // Success!
     return true;
@@ -392,6 +422,8 @@ bool HASSTelescope::Goto(double ra, double dec)
 ***************************************************************************************/
 bool HASSTelescope::Abort()
 {
+    SendCommand(TARGET_CMD, currentSteps.stepRA, currentSteps.stepDec);
+    TrackState = SCOPE_IDLE;
     return true;
 }
 
@@ -404,12 +436,30 @@ bool HASSTelescope::ReadScopeStatus()
     double localSidereal;
 
     LOGF_INFO("---ReadScopeStatus()---", "");
-    SendCommand(REQUESTPOS_CMD);
+    SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
     ReadResponse();
+
+    LOGF_INFO("SendCommand() and ReadResponse() done.","");
+    LOGF_INFO("currentSteps: %i, %i", currentSteps.stepRA, currentSteps.stepDec);
+    LOGF_INFO("current:      %f, %f", current.RA, current.Dec);
+    LOGF_INFO("targetSteps:  %i, %i", targetSteps.stepRA, targetSteps.stepDec);
+    LOGF_INFO("target:       %f, %f", target.RA, target.Dec);
+    LOGF_INFO("startPos:     %f, %f", startPos.RA, startPos.Dec);
+    LOGF_INFO("---","");
+
+    current.RA = (currentSteps.stepRA / PULSE_PER_RA) + startPos.RA;
+    current.Dec = currentSteps.stepDec / PULSE_PER_DEC + startPos.Dec;
+    LOGF_INFO("new current:  %f, %f", current.RA, current.Dec);
+
+    // libnova works in decimal degrees
+    curr_equ_posn.ra = current.RA * 360 / 24;
+    curr_equ_posn.dec = current.Dec;
+
+    NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    JD = ln_get_julian_from_sys();
+    /*JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
     curr_equ_posn.dec = 35.0;
@@ -418,15 +468,14 @@ bool HASSTelescope::ReadScopeStatus()
     LOGF_INFO("Local sidereal time is %f", localSidereal);
 
     curr_equ_posn.ra = localSidereal; 
-    //if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
+    //if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360; */
 
     LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
     LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
     LOGF_INFO("Calling NewRaDec().",  EqN[AXIS_DE].value);
-    NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+    //NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
     LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
     LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
-
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
@@ -437,3 +486,11 @@ bool HASSTelescope::ReadScopeStatus()
 
     return true;
 }
+
+void HASSTelescope::TimerHit()
+{
+    INDI::Telescope::TimerHit(); // This will call ReadScopeStatus
+    //SetTimer(POLLMS);
+}
+
+

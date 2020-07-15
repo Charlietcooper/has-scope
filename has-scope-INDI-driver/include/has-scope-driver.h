@@ -33,13 +33,15 @@ class HASSTelescope : public INDI::Telescope
     bool Handshake() override;
     const char *getDefaultName() override;
     bool initProperties() override;
+    virtual void TimerHit() override;
 
     // Telescope specific functions
     bool ReadScopeStatus() override;
     bool Goto(double, double) override;
     bool Abort() override;
     int ReadResponse();
-    bool SendCommand(char cmd_op);
+    bool SendCommand(char cmd_op, signed long stepRA, signed long stepDec);
+
 
   private:
 
