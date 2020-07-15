@@ -17,6 +17,10 @@
 #include <string.h>
 #include <termios.h>
 
+#include <vector>
+#include <string>
+#include <sstream>
+
 #include <libnova/transform.h>
 #include <libnova/julian_day.h>
 #include <libnova/utility.h>
@@ -33,6 +37,8 @@
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
 #define END_BYTE 0x3E
+#define PULSE_PER_RA  17975     // Pulses per hour of Right Ascension
+#define PULSE_PER_DEC 3777.778  // Pulses per degree of Declination
 
 // Commands available
 #define TARGET_CMD  'T' 
@@ -46,17 +52,12 @@ double currentDEC {0};
 struct {
     double RA {0};
     double Dec {0};
-} current, target;
+} current, target, startPos;
 
 struct {
     signed long stepRA {100};
     signed long stepDec {200};
 } currentSteps, targetSteps;
-
-//lnh_equ_posn hobject, hequ;
-//ln_equ_posn object, equ;
-//lnh_hrz_posn hhrz;
-//
 
 lnh_lnlat_posn hobserver;
 ln_lnlat_posn observer;
@@ -152,7 +153,7 @@ bool HASSTelescope::initProperties()
     // Add Debug control so end user can turn debugging/loggin on and off
     addDebugControl();
 
-        /* 
+    /* 
      * observers position
      * longitude is measured positively eastwards   
      * 
@@ -178,8 +179,12 @@ bool HASSTelescope::initProperties()
     sidereal = ln_get_apparent_sidereal_time(JD);
     curr_equ_posn.dec = 35.0;
     curr_equ_posn.ra = (sidereal / 24.0 * 360) + observer.lng; 
+    if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
 
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+
+    startPos.RA = curr_equ_posn.ra;
+    startPos.Dec = curr_equ_posn.dec;
 
     LOGF_INFO("\n------------------------------------------------------","");
     LOGF_INFO("Set initial position. RA %f, DEC %f", curr_equ_posn.ra, curr_equ_posn.dec);
@@ -187,7 +192,7 @@ bool HASSTelescope::initProperties()
     LOGF_INFO("System Julian date is %f", JD);
     LOGF_INFO("System Sidereal time is %f", sidereal);
     LOGF_INFO("System UTC Date is %i-%i-%i %i:%i:%f", date.years, date.months, date.days, date.hours, date.minutes, date.seconds);
-    LOGF_INFO("Observer position is Lat %f, Long %f", observer.lat, observer.lng);
+    LOGF_INFO("Observer position is Latitude %f, Long %f", observer.lat, observer.lng);
 
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
@@ -234,8 +239,7 @@ int HASSTelescope::ReadResponse()
     int err = TTY_OK;
     char rbuffer[BUFFER_SIZE];
     int bytesToStart = 0;
-    //rbuffer[0] = 0x00;
-    memset(&rbuffer[0], 0, sizeof(rbuffer));
+    memset(&rbuffer[0], 0, sizeof(rbuffer)); // clear the buffer
 
     bool recvInProgress = false;
     bool newData = false;
@@ -244,16 +248,18 @@ int HASSTelescope::ReadResponse()
     char endMarker = '>';
     char rc;
     char hexbuf[3*BUFFER_SIZE];
-
+        
     LOGF_INFO("---Begin ReadResponse()---","");
 
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
     LOGF_INFO("After clearing rbuffer it is: %s", hexbuf);
-    //LOGF_INFO("After clearing rbuffer it is: %s", rbuffer);
-
+    
     // Look for a starting byte until time out occurs or BUFFER_SIZE bytes were read
     while (*rbuffer != START_BYTE && err == TTY_OK)
+        //LOGF_INFO("*rbuffer is %c. START_BYTE is %c", *rbuffer, START_BYTE);
         err = tty_read(fd, rbuffer, 1, ARDUINO_TIMEOUT, &nbytes);
+        LOGF_INFO("*tty_read: nbytes read is %i", nbytes);
+        
         LOGF_INFO("Start byte? Read: %c", rbuffer[0]);
         bytesToStart++;
 
@@ -282,11 +288,31 @@ int HASSTelescope::ReadResponse()
  
         }
     }
-    //tcflush(fd, TCIOFLUSH);
     LOGF_INFO("Finished read. Received: %s", rbuffer);
 
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
     LOGF_INFO("rbuffer Hex (%s)", hexbuf);
+
+    // Update telescope position variables  
+
+    std::string str = rbuffer; 
+    std::vector<std::string> v; 
+    std::stringstream ss(str);
+
+    while (ss.good()) { 
+        std::string substr; 
+        getline(ss, substr, ','); 
+        v.push_back(substr); 
+    } 
+  
+    for (size_t i = 0; i < v.size(); i++) {
+        LOGF_INFO("%s", v[i].c_str());
+    }
+
+    currentSteps.stepRA = std::stoi(v[1].c_str());
+    currentSteps.stepDec = std::stoi(v[2].c_str());
+    LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
+    
 }
 
 bool HASSTelescope::Connect()
@@ -375,6 +401,7 @@ bool HASSTelescope::Abort()
 bool HASSTelescope::ReadScopeStatus()
 {
     double sidereal;
+    double localSidereal;
 
     LOGF_INFO("---ReadScopeStatus()---", "");
     SendCommand(REQUESTPOS_CMD);
@@ -382,18 +409,31 @@ bool HASSTelescope::ReadScopeStatus()
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    sidereal = ln_get_apparent_sidereal_time (JD);
+    JD = ln_get_julian_from_sys();
+    ln_get_date_from_sys(&date);
+    sidereal = ln_get_apparent_sidereal_time(JD);
     curr_equ_posn.dec = 35.0;
-    curr_equ_posn.ra = (sidereal / 24.0 * 360) + observer.lng; 
+    localSidereal = sidereal + observer.lng / 180 * 12;
+    if (localSidereal > 24) localSidereal = localSidereal - 24;
+    LOGF_INFO("Local sidereal time is %f", localSidereal);
 
+    curr_equ_posn.ra = localSidereal; 
+    //if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
+
+    LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
+    LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
+    LOGF_INFO("Calling NewRaDec().",  EqN[AXIS_DE].value);
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
+    LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
+
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
     fs_sexa(DecStr, curr_equ_posn.dec, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
-    LOGF_INFO("ReadScopeStatus() Current RA: %s Current DEC: %s", RAStr, DecStr);
+    LOGF_INFO("ReadScopeStatus() Current RA: %f Current DEC: %f", curr_equ_posn.ra, curr_equ_posn.dec);
 
     return true;
 }
