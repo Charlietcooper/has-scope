@@ -153,6 +153,7 @@ bool HASSTelescope::initProperties()
     SetTimer(POLLMS);
 
     TrackState = SCOPE_IDLE;
+    setDriverInterface(TELESCOPE_INTERFACE);
 
     /* 
      * observers position
@@ -181,7 +182,7 @@ bool HASSTelescope::initProperties()
     curr_equ_posn.dec = 35.0;
     // libnova works in decimal degrees for RA
     curr_equ_posn.ra = ((sidereal / 24 * 360) + observer.lng) / 360 * 24; 
-    if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
+    if (curr_equ_posn.ra > 24) curr_equ_posn.ra = curr_equ_posn.ra - 24;
 
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
 
@@ -225,11 +226,11 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
     LOGF_INFO("CMD as Hex (%s)", hexbuf);
 
     //tcflush(fd, TCIOFLUSH);
-    tcflush(fd, TCOFLUSH);
+    //tcflush(fd, TCOFLUSH);
 
     if ((err = tty_write(fd, cmd, cmd_nbytes, &nbytes)) != TTY_OK)
     {
-        LOGF_INFO("tty_write Error, %i bytes", nbytes);
+        LOGF_INFO("tty_write Error: %i, %i bytes", err, nbytes);
         return -5;
     } else {
         LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
@@ -240,8 +241,9 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
 int HASSTelescope::ReadResponse()
 {
     int nbytes = 0;
-    int err = TTY_OK;
+    int err = TTY_TIME_OUT;
     char rbuffer[BUFFER_SIZE];
+    char *rbuff = &rbuffer[0];
     int bytesToStart = 0;
     memset(&rbuffer[0], 0, sizeof(rbuffer)); // clear the buffer
 
@@ -260,11 +262,11 @@ int HASSTelescope::ReadResponse()
     
     // Look for a starting byte until time out occurs or BUFFER_SIZE bytes were read
     while (*rbuffer != START_BYTE && err == TTY_OK)
-        //LOGF_INFO("*rbuffer is %c. START_BYTE is %c", *rbuffer, START_BYTE);
         err = tty_read(fd, rbuffer, 1, ARDUINO_TIMEOUT, &nbytes);
-        LOGF_INFO("*tty_read: nbytes read is %i", nbytes);
-        
-        LOGF_INFO("Start byte? Read: %c", rbuffer[0]);
+        LOGF_INFO("bytesToStart is %i, err is %i", bytesToStart, err);
+        LOGF_INFO("*rbuff is %c. START_BYTE is %c", *rbuff, START_BYTE);
+        LOGF_INFO("tty_read: nbytes read is %i", nbytes);
+        LOGF_INFO("Read: %c. Start byte?", rbuffer[0]);
         bytesToStart++;
 
     LOGF_INFO("Found START_BYTE. A tty_read of %i bytes to find start byte.", bytesToStart);
@@ -273,7 +275,7 @@ int HASSTelescope::ReadResponse()
     recvInProgress = true;
     while (newData == false) {
         err = tty_read(fd, &rc, 1, ARDUINO_TIMEOUT, &nbytes);
-        //LOGF_INFO("Read: %c, byte number %i", rc, ndx);
+        LOGF_INFO("Read: %c, byte number %i", rc, ndx);
         if (recvInProgress == true) {
             //LOGF_INFO("rc %c, endMarker %c", rc, endMarker);
             if (rc != endMarker) {
@@ -321,11 +323,15 @@ int HASSTelescope::ReadResponse()
 
 bool HASSTelescope::Connect()
 {
+    LOGF_INFO("--- Connect() called. ---","");
+
     const char*defaultPort = "/dev/ttyACM0";
     int err = TTY_OK;
 
-    if (isConnected())
+    if (isConnected()) {
+        LOGF_INFO("Connect(): Already connected, according to isConnected()","");
         return true;
+    }
 
     if (tty_connect(defaultPort, 9600, 8, 0, 1, &fd) != TTY_OK) {
         LOGF_INFO("tyy_connect failed.","");
@@ -334,6 +340,7 @@ bool HASSTelescope::Connect()
         LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
     }
 
+    SendCommand(REQUESTPOS_CMD, 0, 0);
     ReadScopeStatus();
 
     bool status = true;
@@ -411,8 +418,6 @@ bool HASSTelescope::Goto(double ra, double dec)
     //LOGF_INFO("Slewing to RA: %s - DEC: %s", RAStr, DecStr);
     LOGF_INFO("Slewing to stepRA %i, stepDec %i", targetSteps.stepRA, targetSteps.stepDec);
 
-    TrackState = SCOPE_SLEWING;
-
     // Success!
     return true;
 }
@@ -436,6 +441,7 @@ bool HASSTelescope::ReadScopeStatus()
     double localSidereal;
 
     LOGF_INFO("---ReadScopeStatus()---", "");
+    //tcflush(fd, TCIOFLUSH);
     SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
     ReadResponse();
 
@@ -489,7 +495,13 @@ bool HASSTelescope::ReadScopeStatus()
 
 void HASSTelescope::TimerHit()
 {
-    INDI::Telescope::TimerHit(); // This will call ReadScopeStatus
+    LOGF_INFO("--- TimerHit() called ---", "");
+
+    if ( isConnected() ) {
+        SendCommand(REQUESTPOS_CMD,0,0);
+        ReadScopeStatus();
+    }
+    //INDI::Telescope::TimerHit(); // This will call ReadScopeStatus
     //SetTimer(POLLMS);
 }
 
