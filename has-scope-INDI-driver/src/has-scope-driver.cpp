@@ -39,16 +39,16 @@
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
 #define END_BYTE 0x3E
-#define PULSE_PER_RA  17975     // Pulses per hour of Right Ascension
-#define PULSE_PER_DEC 3777.778  // Pulses per degree of Declination
+#define PULSE_PER_RA  17975.00001     // Pulses per hour of Right Ascension (hrs)
+#define PULSE_PER_DEC 3777.778  // Pulses per degree of Declination (deg)
 
 // Commands available
 #define TARGET_CMD  'T' 
 #define REQUESTPOS_CMD  'R' // Request the current position (in number of steps).
 
 struct {
-    double RA {0};
-    double Dec {0};
+    double RA {0}; // hrs
+    double Dec {0}; // deg
 } current, target, startPos; // RA in hours
 
 struct {
@@ -179,23 +179,23 @@ bool HASSTelescope::initProperties()
     sidereal = ln_get_apparent_sidereal_time(JD);
     curr_equ_posn.dec = 35.0;
     // libnova works in decimal degrees for RA
-    curr_equ_posn.ra = ((sidereal / 24 * 360) + observer.lng) / 360 * 24; 
-    if (curr_equ_posn.ra > 24) curr_equ_posn.ra = curr_equ_posn.ra - 24;
+    curr_equ_posn.ra = (sidereal + (observer.lng / 360 * 24)) / 24 * 360; // deg
+    if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
 
-    NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+    NewRaDec(curr_equ_posn.ra / 360 * 24, curr_equ_posn.dec);
 
     startPos.RA = curr_equ_posn.ra / 360 * 24; // RA in hours
     startPos.Dec = curr_equ_posn.dec;
 
     LOGF_INFO("\n------------------------------------------------------","");
-    LOGF_INFO("Set initial position. RA %f, DEC %f", curr_equ_posn.ra, curr_equ_posn.dec);
-    LOGF_INFO("Right Ascension in hours: %f", curr_equ_posn.ra);
+    LOGF_INFO("Set initial position. RA %f deg, DEC %f deg", curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("Right Ascension in hours: %f", curr_equ_posn.ra / 360 * 24);
     LOGF_INFO("System Julian date is %f", JD);
     LOGF_INFO("System Sidereal time is %f", sidereal);
     LOGF_INFO("System UTC Date is %i-%i-%i %i:%i:%f", date.years, date.months, date.days, date.hours, date.minutes, date.seconds);
     LOGF_INFO("Observer position is Latitude %f, Long %f", observer.lat, observer.lng);
-    LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
-    LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
+    LOGF_INFO("EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
+    LOGF_INFO("EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
 
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
@@ -352,8 +352,9 @@ bool HASSTelescope::Connect()
         LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
     }
 
-    //SendCommand(REQUESTPOS_CMD, 0, 0);
-    //ReadScopeStatus();
+    // Send a dummy postion request. No reply will come on the first attempt.
+    SendCommand(REQUESTPOS_CMD, 0, 0);
+    waitingOnSerialResponse = false ; 
 
     bool status = true;
     return status;
@@ -474,31 +475,33 @@ bool HASSTelescope::ReadScopeStatus()
     LOGF_INFO("startPos:     %f, %f", startPos.RA, startPos.Dec);
     LOGF_INFO("---","");
 
-    current.RA = currentSteps.stepRA / PULSE_PER_RA + startPos.RA;
+    current.RA = currentSteps.stepRA / PULSE_PER_RA + startPos.RA; // hrs
     current.Dec = currentSteps.stepDec / PULSE_PER_DEC + startPos.Dec;
-    LOGF_INFO("new current:  %f, %f", current.RA, current.Dec);
+    LOGF_INFO("new current:  %f hrs, %f deg", current.RA, current.Dec);
 
     // libnova works in decimal degrees
     curr_equ_posn.ra = current.RA * 360 / 24;
     curr_equ_posn.dec = current.Dec;
 
-    NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("new curr_equ_posn.ra: %f deg", curr_equ_posn.ra);
+
+    NewRaDec(curr_equ_posn.ra / 360 * 24, curr_equ_posn.dec); // RA in hrs
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
-    LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
+    LOGF_INFO("EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
+    LOGF_INFO("EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
     LOGF_INFO("Calling NewRaDec().",  EqN[AXIS_DE].value);
     //NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
-    LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
-    LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
+    LOGF_INFO("EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
+    LOGF_INFO("EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
     fs_sexa(DecStr, curr_equ_posn.dec, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
-    LOGF_INFO("ReadScopeStatus() Current RA: %f Current DEC: %f", curr_equ_posn.ra, curr_equ_posn.dec);
+    LOGF_INFO("ReadScopeStatus() Current RA: %f deg,  Current DEC: %f deg", curr_equ_posn.ra, curr_equ_posn.dec);
 
     return true;
 }
