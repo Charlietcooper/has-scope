@@ -34,7 +34,7 @@
 
 #include "has-scope-driver.h"
 
-#define POLLMS 4000     // Poll time in milliseconds
+#define POLLMS 2000     // Poll time in milliseconds
 #define BUFFER_SIZE     40  // Maximum message length
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
@@ -71,9 +71,6 @@ void hexDump(char *buf, const char *data, int size)
 {
     for (int i = 0; i < size; i++)
         sprintf(buf + 3 * i, "%02X ", (unsigned char)data[i]);
-
-    //if (size > 0)
-    //    buf[3 * size - 1] = '\0';
 }
 
 /**************************************************************************************
@@ -219,16 +216,17 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
 
     LOGF_INFO("---Begin SendCommand()---","");
 
-    cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>\n", cmd_op, stepRA, stepDec);
-    LOGF_INFO("cmd buffer is: %s", cmd);
-    cmd_nbytes++;
 
-    hexDump(hexbuf, cmd, cmd_nbytes);
-    LOGF_INFO("CMD as Hex (%s)", hexbuf);
 
     if (waitingOnSerialResponse) {
         LOGF_INFO("Already waiting on a response. Not sending command.","");
     } else {
+        cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>\n", cmd_op, stepRA, stepDec);
+        LOGF_INFO("cmd buffer is: %s", cmd);
+        cmd_nbytes++;
+        hexDump(hexbuf, cmd, cmd_nbytes);
+        LOGF_INFO("CMD as Hex (%s)", hexbuf);
+
         //tcflush(fd, TCIOFLUSH);
         tcflush(fd, TCOFLUSH);
 
@@ -287,7 +285,7 @@ int HASSTelescope::ReadResponse()
     recvInProgress = true;
     while (newData == false) {
         err = tty_read(fd, &rc, 1, ARDUINO_TIMEOUT, &nbytes);
-        LOGF_INFO("Read: %c, byte number %i", rc, ndx);
+        //LOGF_INFO("Read: %c, byte number %i", rc, ndx);
         if (recvInProgress == true) {
             //LOGF_INFO("rc %c, endMarker %c", rc, endMarker);
             if (rc != endMarker) {
@@ -419,7 +417,7 @@ bool HASSTelescope::Goto(double ra, double dec)
     LOGF_INFO("diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
 
     targetSteps.stepRA = currentSteps.stepRA + diffStepRA;
-    targetSteps.stepDec = currentSteps.stepDec - diffStepDec;
+    targetSteps.stepDec = currentSteps.stepDec + diffStepDec;
     LOGF_INFO("targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
 
     // Send new target to Arduino
@@ -458,9 +456,15 @@ bool HASSTelescope::ReadScopeStatus()
 
     LOGF_INFO("---ReadScopeStatus()---", "");
     
-    tcflush(fd, TCIOFLUSH);
-    SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
-    ReadResponse();
+    if (!waitingOnSerialResponse) {
+        ReadResponse();
+        LOGF_INFO("Already waiting on Serial Response. Just doing ReadResponse().", "");
+    } else {
+        LOGF_INFO("Calling both SendCommand and ReadResponse.", "");
+        tcflush(fd, TCIOFLUSH);
+        SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
+        ReadResponse();
+    }
 
     LOGF_INFO("SendCommand() and ReadResponse() done.","");
     LOGF_INFO("currentSteps: %i, %i", currentSteps.stepRA, currentSteps.stepDec);
@@ -470,7 +474,7 @@ bool HASSTelescope::ReadScopeStatus()
     LOGF_INFO("startPos:     %f, %f", startPos.RA, startPos.Dec);
     LOGF_INFO("---","");
 
-    current.RA = (currentSteps.stepRA / PULSE_PER_RA) + startPos.RA;
+    current.RA = currentSteps.stepRA / PULSE_PER_RA + startPos.RA;
     current.Dec = currentSteps.stepDec / PULSE_PER_DEC + startPos.Dec;
     LOGF_INFO("new current:  %f, %f", current.RA, current.Dec);
 
@@ -481,17 +485,6 @@ bool HASSTelescope::ReadScopeStatus()
     NewRaDec(curr_equ_posn.ra, curr_equ_posn.dec);
 
     char RAStr[64]={0}, DecStr[64]={0};
-
-    /*JD = ln_get_julian_from_sys();
-    ln_get_date_from_sys(&date);
-    sidereal = ln_get_apparent_sidereal_time(JD);
-    curr_equ_posn.dec = 35.0;
-    localSidereal = sidereal + observer.lng / 180 * 12;
-    if (localSidereal > 24) localSidereal = localSidereal - 24;
-    LOGF_INFO("Local sidereal time is %f", localSidereal);
-
-    curr_equ_posn.ra = localSidereal; 
-    //if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360; */
 
     LOGF_INFO("EqN[AXIS_RA].value is %f",  EqN[AXIS_RA].value);
     LOGF_INFO("EqN[AXIS_DE].value is %f",  EqN[AXIS_DE].value);
@@ -516,7 +509,7 @@ void HASSTelescope::TimerHit()
 
     if ( isConnected()) { // && TrackState == SCOPE_SLEWING
         LOGF_INFO("IsConnected [and SCOPE_Slewing]. Calling REQUESTPOS_CMD", "");
-        SendCommand(REQUESTPOS_CMD,0,0);
+        if (!waitingOnSerialResponse) SendCommand(REQUESTPOS_CMD,0,0);
         ReadScopeStatus();
     } else {
         LOGF_INFO("not (IsConnected and SCOPE_Slewing). No action.", "");
