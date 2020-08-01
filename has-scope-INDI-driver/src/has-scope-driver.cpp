@@ -517,8 +517,6 @@ bool HASSTelescope::ReadScopeStatus()
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
  
-    //LOGF_INFO("ReadScopeStatus() Current RA: %f deg,  Current DEC: %f deg", curr_equ_posn.ra, curr_equ_posn.dec);
-
     return true;
 }
 
