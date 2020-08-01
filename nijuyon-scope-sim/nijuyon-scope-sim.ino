@@ -6,6 +6,16 @@
 #define ALT_STEP  4
 #define ALT_DIR   5
 
+enum scopeState {
+   SCOPE_IDLE,
+   SCOPE_SLEWING,
+   SCOPE_TRACKING,
+   SCOPE_PARKING,
+   SCOPE_PARKED
+};
+
+scopeState trackState = SCOPE_IDLE;
+
 const long AZI_LIM_HI = 5000000;
 const long AZI_LIM_LO = -5000000;
 const long ALT_LIM_HI = 500000;
@@ -13,8 +23,9 @@ const long ALT_LIM_LO = -500000;
 
 const boolean DISABLE_OUTPUT = true;
 
-const float max_speed_SP = 900.0; // Steps per second (as per stepper motor library, not sure if this is what it does in reality
+const float max_speed_SP = 900.0;    // Steps per second (as per stepper motor library, not sure if this is what it does in reality
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
+const float sync_speed = 5.0;        // pulses per sec. Track rate for Right Ascension.
 
 const byte numChars = 32;
 const byte cmdChars = 2;
@@ -32,21 +43,23 @@ char tempChars[numChars];       // temporary array for use when parsing
 char RecdCMD;
 bool targetCMD = false;
 bool sendposCMD = false;
+bool trackCMD = false;
 
-
+unsigned long time = millis();
+unsigned long updateTime = time + 1000;
+const float RAdrift_1msec = 24.0 / 86400 / 1000;
 
 AccelStepper stepperAZI(AccelStepper::DRIVER, AZI_STEP, AZI_DIR);
 AccelStepper stepperALT(AccelStepper::DRIVER, ALT_STEP, ALT_DIR);
 
 void setup() {
-   Serial.begin(9600);
+   Serial.begin(57600);
 
    stepperAZI.setMaxSpeed(max_speed_SP);
    stepperAZI.setAcceleration(max_speed_SP / sec_to_max_speed); 
    
    stepperALT.setMaxSpeed(max_speed_SP * 1.0); // 3.203125
    stepperALT.setAcceleration(max_speed_SP / sec_to_max_speed); 
-
 }
 
 void loop() {
@@ -58,15 +71,36 @@ void loop() {
             // this temporary copy is necessary to protect the original data
             //   because strtok() used in parseData() replaces the commas with \0
         parseData();
-        //showParsedData();
         if (sendposCMD) { sendCurrentPosition(); sendposCMD = false; }
         if (targetCMD) { issueDriverCommand(); targetCMD = false; }
+        if (trackCMD) { setToTrackMode(); trackCMD = false; }
         newData = false;
     }
+
+    switch (trackState) {
+      case SCOPE_IDLE:
+        // Do nothing.
+        break;
+      case SCOPE_SLEWING:
+        stepperAZI.run();
+        stepperALT.run();
+        break;
+      case SCOPE_PARKING:
+        stepperAZI.run();
+        stepperALT.run();
+        break;
+      case SCOPE_TRACKING:
+        stepperAZI.runSpeed();
+        break;
+      case SCOPE_PARKED:
+        // Do nothing
+        break;
+      default:
+        // Do nothing.
+        break;
+    }
     
-    stepperAZI.run();
-    stepperALT.run();
-    
+    /*
     if (DISABLE_OUTPUT == false && messageCntr > 90000) {
         Serial.print("Speed: "); 
         Serial.print("AZI = ");
@@ -87,12 +121,14 @@ void loop() {
         messageCntr = 0;
     } else {
       messageCntr++;
-    }
-    //delay(1000); // milliseconds
+    } */
 }
 
 void issueDriverCommand() {
- // Limit checking
+
+  trackState = SCOPE_SLEWING;
+  
+  // Limit checking
   if (RecdAZI > AZI_LIM_HI) { RecdAZI = AZI_LIM_HI; }
   if (RecdAZI < AZI_LIM_LO) { RecdAZI = AZI_LIM_LO; }
   if (RecdALT > ALT_LIM_HI) { RecdALT = ALT_LIM_HI; }
@@ -102,16 +138,16 @@ void issueDriverCommand() {
   if (RecdAZI != AZI_SP) { 
     AZI_SP = RecdAZI;
     stepperAZI.moveTo(AZI_SP);
-    //Serial.print("Azimuth move to: ");
-    //Serial.println(AZI_SP);
   }
   if (RecdALT != ALT_SP) { 
     ALT_SP = RecdALT;
     stepperALT.moveTo(ALT_SP);
-    //Serial.print("Altitude move to: ");
-    //Serial.println(ALT_SP);
   }
-  //Serial.println("-------------------------");
+}
+
+void setToTrackMode() {
+  stepperAZI.setSpeed(sync_speed);
+  trackState = SCOPE_TRACKING;
 }
 
 /* 
@@ -161,7 +197,7 @@ void parseData() {      // split the data into its parts
     //Serial.print(tempChars);
     //Serial.println(">"); 
         
-    strtokIndx = strtok(tempChars,",");      // get the first part - the string
+    strtokIndx = strtok(tempChars,","); // get the first part - the string
     RecdCMD = *strtokIndx; // convert and copy it to the received command.
 
     strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
@@ -174,8 +210,9 @@ void parseData() {      // split the data into its parts
       targetCMD = true;
     } else if (RecdCMD == 'R') {
       sendposCMD = true;
+    } else if (RecdCMD == 'S') {
+      trackCMD = true;
     }
-
 }
 
 void sendCurrentPosition() {
@@ -184,14 +221,4 @@ void sendCurrentPosition() {
     Serial.print(",");
     Serial.print(stepperALT.currentPosition());
     Serial.println(">");
-}
-
-void showParsedData() {
-    Serial.print("Received CMD: ");
-    Serial.println(RecdCMD);
-    Serial.print("Received AZI: ");
-    Serial.println(RecdAZI);
-    Serial.print("Received ALT: ");
-    Serial.println(RecdALT);
-   
 }

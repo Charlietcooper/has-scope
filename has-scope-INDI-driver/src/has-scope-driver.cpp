@@ -11,12 +11,13 @@
     A simple GOTO telescope that simulator slewing operation.
 */
 
-
 #include <cmath>
 #include <memory>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#include <chrono>
 
 #include <vector>
 #include <string>
@@ -40,7 +41,7 @@
 #define START_BYTE 0x3C
 #define END_BYTE 0x3E
 #define PULSE_PER_RA  17975.0     // Pulses per hour of Right Ascension (hrs)
-#define PULSE_PER_DEC 3777.778  // Pulses per degree of Declination (deg)
+#define PULSE_PER_DEC 3777.77778  // Pulses per degree of Declination (deg)
 
 // Commands available
 #define TARGET_CMD  'T' 
@@ -54,7 +55,7 @@ struct {
 struct {
     signed long stepRA {0};
     signed long stepDec {0};
-} currentSteps, targetSteps;
+} currentSteps, prevSteps, deltaSteps, targetSteps;
 
 lnh_lnlat_posn hobserver;
 ln_lnlat_posn observer;
@@ -62,6 +63,12 @@ ln_hrz_posn hrz_posn;
 ln_equ_posn curr_equ_posn;
 ln_date date;
 double JD;
+
+typedef std::chrono::steady_clock Clock; // A monotonic clock
+Clock::time_point prevTime = Clock::now();
+Clock::time_point currTime = Clock::now();
+
+const double RAdrift_1sec = 24.0 / 86400.0;
 
 bool waitingOnSerialResponse = false;
 
@@ -150,6 +157,14 @@ bool HASSTelescope::initProperties()
 
     SetTimer(POLLMS);
 
+    currTime = Clock::now();
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(currTime - prevTime);
+
+    double time_spand = time_span.count();
+
+    //LOGF_INFO("time_span: %f sec", time_span);
+    //LOGF_INFO("time_span double : %f sec", time_spand);
+    
     TrackState = SCOPE_IDLE;
     setDriverInterface(TELESCOPE_INTERFACE);
 
@@ -186,6 +201,9 @@ bool HASSTelescope::initProperties()
 
     startPos.RA = curr_equ_posn.ra / 360 * 24; // RA in hours
     startPos.Dec = curr_equ_posn.dec;
+
+    prevSteps.stepRA = 0;
+    prevSteps.stepDec = 0;
 
     LOGF_INFO("\n------------------------------------------------------","");
     LOGF_INFO("Set initial position. RA %f deg, DEC %f deg", curr_equ_posn.ra, curr_equ_posn.dec);
@@ -320,15 +338,9 @@ int HASSTelescope::ReadResponse()
         v.push_back(substr); 
     } 
   
-    /*
-    for (size_t i = 0; i < v.size(); i++) {
-        LOGF_INFO("%s", v[i].c_str());
-    } */
-
     currentSteps.stepRA = std::stoi(v[1].c_str());
     currentSteps.stepDec = std::stoi(v[2].c_str());
     LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
-    
 }
 
 bool HASSTelescope::Connect()
@@ -343,7 +355,7 @@ bool HASSTelescope::Connect()
         return true;
     }
 
-    if (tty_connect(defaultPort, 9600, 8, 0, 1, &fd) != TTY_OK) {
+    if (tty_connect(defaultPort, 57600, 8, 0, 1, &fd) != TTY_OK) {
         LOGF_INFO("tyy_connect failed.","");
         return false;
     } else {
@@ -454,6 +466,7 @@ bool HASSTelescope::ReadScopeStatus()
     double localSidereal;
 
     LOGF_INFO("---ReadScopeStatus()---", "");
+    LOGF_INFO("TrackState: %i", TrackState);
     
     if (!waitingOnSerialResponse) {
         ReadResponse();
@@ -465,24 +478,33 @@ bool HASSTelescope::ReadScopeStatus()
         ReadResponse();
     }
 
-    /*
-    LOGF_INFO("SendCommand() and ReadResponse() done.","");
-    LOGF_INFO("currentSteps: %i, %i", currentSteps.stepRA, currentSteps.stepDec);
-    LOGF_INFO("current:      %f, %f", current.RA, current.Dec);
-    LOGF_INFO("targetSteps:  %i, %i", targetSteps.stepRA, targetSteps.stepDec);
-    LOGF_INFO("target:       %f, %f", target.RA, target.Dec);
-    LOGF_INFO("startPos:     %f, %f", startPos.RA, startPos.Dec);
-    LOGF_INFO("---","");
-    */
+    // Calculate delta Steps
+    deltaSteps.stepRA = currentSteps.stepRA - prevSteps.stepRA;
+    deltaSteps.stepDec = currentSteps.stepDec - prevSteps.stepDec;
 
-    current.RA = currentSteps.stepRA / PULSE_PER_RA + startPos.RA; // hrs
-    current.Dec = currentSteps.stepDec / PULSE_PER_DEC + startPos.Dec;
+    LOGF_INFO("(abs(deltaSteps.stepRA) < 0.001) %i", (abs(deltaSteps.stepRA) < 0.001));
+    LOGF_INFO("(abs(deltaSteps.stepDec) < 0.001) %i", (abs(deltaSteps.stepDec) < 0.001));
+    LOGF_INFO("(TrackState == SCOPE_SLEWING) %i", (TrackState == SCOPE_SLEWING));
+
+    if ((TrackState == SCOPE_SLEWING) && (abs(deltaSteps.stepRA) < 0.001) && (abs(deltaSteps.stepDec) < 0.001)) {
+        TrackState == SCOPE_IDLE;
+    }
+
+    LOGF_INFO("deltaSteps.stepRA %f, currentSteps.stepRA %f, prevSteps.stepRA %f", deltaSteps.stepRA, currentSteps.stepRA, prevSteps.stepRA );
+    prevSteps.stepRA = currentSteps.stepRA;
+    prevSteps.stepDec = currentSteps.stepDec;
+    LOGF_INFO("updated prevSteps.stepRA %f", prevSteps.stepRA);
+    LOGF_INFO("Change in RA %f", deltaSteps.stepRA / PULSE_PER_RA);
+    LOGF_INFO("curr_equ_posn.ra %f", curr_equ_posn.ra);
+
+    current.RA = (deltaSteps.stepRA / PULSE_PER_RA) + EqN[AXIS_RA].value; // hrs
+    current.Dec = deltaSteps.stepDec / PULSE_PER_DEC + EqN[AXIS_DE].value;
 
     // libnova works in decimal degrees
     curr_equ_posn.ra = current.RA * 360 / 24;
     curr_equ_posn.dec = current.Dec;
 
-    NewRaDec(curr_equ_posn.ra / 360 * 24, curr_equ_posn.dec); // RA in hrs
+    NewRaDec(current.RA, current.Dec); // RA in hrs
 
     char RAStr[64]={0}, DecStr[64]={0};
 
@@ -494,6 +516,7 @@ bool HASSTelescope::ReadScopeStatus()
     fs_sexa(DecStr, curr_equ_posn.dec, 2, 3600);
 
     DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
+ 
     //LOGF_INFO("ReadScopeStatus() Current RA: %f deg,  Current DEC: %f deg", curr_equ_posn.ra, curr_equ_posn.dec);
 
     return true;
@@ -501,7 +524,19 @@ bool HASSTelescope::ReadScopeStatus()
 
 void HASSTelescope::TimerHit()
 {
-    //LOGF_INFO("--- TimerHit() called ---", "");
+    std::chrono::duration<double> time_span;
+    double RAdrift;
+
+    LOGF_INFO("--- TimerHit() called ---", "");
+    if (TrackState == SCOPE_IDLE) {
+        currTime = Clock::now();
+        time_span = std::chrono::duration_cast<std::chrono::duration<double>>(currTime - prevTime);
+        //LOGF_INFO("time_span is %f sec", time_span.count());
+        prevTime = Clock::now();
+        RAdrift = time_span.count() * RAdrift_1sec;
+        LOGF_INFO("RAdrift is %f hrs", RAdrift);
+        NewRaDec(EqN[AXIS_RA].value + RAdrift, EqN[AXIS_DE].value); // RA in hrs
+    }
 
     if ( isConnected()) { // && TrackState == SCOPE_SLEWING
         //LOGF_INFO("IsConnected [and SCOPE_Slewing]. Calling REQUESTPOS_CMD", "");
@@ -512,7 +547,4 @@ void HASSTelescope::TimerHit()
     }
 
     SetTimer(POLLMS);
-
 }
-
-
