@@ -192,7 +192,7 @@ bool HASSTelescope::initProperties()
     JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
-    curr_equ_posn.dec = 35.0;
+    curr_equ_posn.dec = 45.0;
     // libnova works in decimal degrees for RA
     curr_equ_posn.ra = (sidereal + (observer.lng / 360 * 24)) / 24 * 360; // deg
     if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
@@ -238,10 +238,10 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
         LOGF_INFO("Already waiting on a response. Not sending command.","");
     } else {
         cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>\n", cmd_op, stepRA, stepDec);
-        LOGF_INFO("cmd buffer is: %s", cmd);
+        LOGF_INFO("Command sent was: %s", cmd);
         cmd_nbytes++;
         hexDump(hexbuf, cmd, cmd_nbytes);
-        LOGF_INFO("CMD as Hex (%s)", hexbuf);
+        //LOGF_INFO("CMD as Hex (%s)", hexbuf);
 
         //tcflush(fd, TCIOFLUSH);
         tcflush(fd, TCOFLUSH);
@@ -251,7 +251,7 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
             LOGF_INFO("tty_write Error: %i, %i bytes", err, nbytes);
             return -5;
         } else {
-            LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
+            //LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
             waitingOnSerialResponse = true;
         }
     }
@@ -275,7 +275,7 @@ int HASSTelescope::ReadResponse()
     char rc;
     char hexbuf[3*BUFFER_SIZE];
         
-    LOGF_INFO("---Begin ReadResponse()---","");
+    LOGF_INFO("--- ReadResponse() ---","");
 
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
       
@@ -319,7 +319,7 @@ int HASSTelescope::ReadResponse()
  
         }
     }
-    LOGF_INFO("Finished read. Received: %s", rbuffer);
+    LOGF_INFO("Received: %s", rbuffer);
 
     waitingOnSerialResponse = false;
 
@@ -340,7 +340,7 @@ int HASSTelescope::ReadResponse()
   
     currentSteps.stepRA = std::stoi(v[1].c_str());
     currentSteps.stepDec = std::stoi(v[2].c_str());
-    LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
+    //LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
 }
 
 bool HASSTelescope::Connect()
@@ -470,9 +470,9 @@ bool HASSTelescope::ReadScopeStatus()
     
     if (!waitingOnSerialResponse) {
         ReadResponse();
-        LOGF_INFO("Already waiting on Serial Response. Just doing ReadResponse().", "");
+        //LOGF_INFO("Already waiting on Serial Response. Just doing ReadResponse().", "");
     } else {
-        LOGF_INFO("Calling both SendCommand and ReadResponse.", "");
+        //LOGF_INFO("Calling both SendCommand and ReadResponse.", "");
         tcflush(fd, TCIOFLUSH);
         SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
         ReadResponse();
@@ -482,20 +482,21 @@ bool HASSTelescope::ReadScopeStatus()
     deltaSteps.stepRA = currentSteps.stepRA - prevSteps.stepRA;
     deltaSteps.stepDec = currentSteps.stepDec - prevSteps.stepDec;
 
-    LOGF_INFO("(abs(deltaSteps.stepRA) < 0.001) %i", (abs(deltaSteps.stepRA) < 0.001));
-    LOGF_INFO("(abs(deltaSteps.stepDec) < 0.001) %i", (abs(deltaSteps.stepDec) < 0.001));
-    LOGF_INFO("(TrackState == SCOPE_SLEWING) %i", (TrackState == SCOPE_SLEWING));
+    //LOGF_INFO("(abs(deltaSteps.stepRA) < 0.001) %i", (abs(deltaSteps.stepRA) < 0.001));
+    //LOGF_INFO("(abs(deltaSteps.stepDec) < 0.001) %i", (abs(deltaSteps.stepDec) < 0.001));
+    //LOGF_INFO("(TrackState == SCOPE_SLEWING) %i", (TrackState == SCOPE_SLEWING));
 
     if ((TrackState == SCOPE_SLEWING) && (abs(deltaSteps.stepRA) < 0.001) && (abs(deltaSteps.stepDec) < 0.001)) {
+        LOGF_INFO("Set TrackState == SCOPE_IDLE","");
         TrackState == SCOPE_IDLE;
     }
 
-    LOGF_INFO("deltaSteps.stepRA %f, currentSteps.stepRA %f, prevSteps.stepRA %f", deltaSteps.stepRA, currentSteps.stepRA, prevSteps.stepRA );
+    //LOGF_INFO("deltaSteps.stepRA %f, currentSteps.stepRA %f, prevSteps.stepRA %f", deltaSteps.stepRA, currentSteps.stepRA, prevSteps.stepRA );
     prevSteps.stepRA = currentSteps.stepRA;
     prevSteps.stepDec = currentSteps.stepDec;
-    LOGF_INFO("updated prevSteps.stepRA %f", prevSteps.stepRA);
-    LOGF_INFO("Change in RA %f", deltaSteps.stepRA / PULSE_PER_RA);
-    LOGF_INFO("curr_equ_posn.ra %f", curr_equ_posn.ra);
+    //LOGF_INFO("updated prevSteps.stepRA %f", prevSteps.stepRA);
+    //LOGF_INFO("Change in RA %f", deltaSteps.stepRA / PULSE_PER_RA);
+    //LOGF_INFO("curr_equ_posn.ra %f", curr_equ_posn.ra);
 
     current.RA = (deltaSteps.stepRA / PULSE_PER_RA) + EqN[AXIS_RA].value; // hrs
     current.Dec = deltaSteps.stepDec / PULSE_PER_DEC + EqN[AXIS_DE].value;
@@ -515,7 +516,7 @@ bool HASSTelescope::ReadScopeStatus()
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
     fs_sexa(DecStr, curr_equ_posn.dec, 2, 3600);
 
-    DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
+    //DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
  
     return true;
 }
@@ -532,7 +533,7 @@ void HASSTelescope::TimerHit()
         //LOGF_INFO("time_span is %f sec", time_span.count());
         prevTime = Clock::now();
         RAdrift = time_span.count() * RAdrift_1sec;
-        LOGF_INFO("RAdrift is %f hrs", RAdrift);
+        //LOGF_INFO("RAdrift is %f hrs", RAdrift);
         NewRaDec(EqN[AXIS_RA].value + RAdrift, EqN[AXIS_DE].value); // RA in hrs
     }
 
