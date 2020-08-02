@@ -137,7 +137,14 @@ HASSTelescope::HASSTelescope()
     // We add an additional debug level so we can log verbose scope status
     //DBG_SCOPE = INDI::Logger::getInstance().addDebugLevel("Scope Verbose", "SCOPE");
 
-    SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT);
+/*
+    TELESCOPE_CAN_GOTO = 1 << 0, TELESCOPE_CAN_SYNC = 1 << 1, TELESCOPE_CAN_PARK = 1 << 2, TELESCOPE_CAN_ABORT = 1 << 3,
+  TELESCOPE_HAS_TIME = 1 << 4, TELESCOPE_HAS_LOCATION = 1 << 5, TELESCOPE_HAS_PIER_SIDE = 1 << 6, TELESCOPE_HAS_PEC = 1 << 7,
+  TELESCOPE_HAS_TRACK_MODE = 1 << 8, TELESCOPE_CAN_CONTROL_TRACK = 1 << 9, TELESCOPE_HAS_TRACK_RATE = 1 << 10, TELESCOPE_HAS_PIER_SIDE_SIMULATION = 1 << 11
+*/
+
+    SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT | \
+        TELESCOPE_HAS_LOCATION | TELESCOPE_HAS_TRACK_MODE | TELESCOPE_CAN_CONTROL_TRACK );
     LOGF_INFO("\n------------------------------------------------------","");
     LOGF_INFO("Initializing HAS Telescope...","");
 
@@ -167,6 +174,7 @@ bool HASSTelescope::initProperties()
     
     TrackState = SCOPE_IDLE;
     setDriverInterface(TELESCOPE_INTERFACE);
+    SetTrackMode(TRACK_SIDEREAL);
 
     /* 
      * observers position
@@ -192,7 +200,7 @@ bool HASSTelescope::initProperties()
     JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
-    curr_equ_posn.dec = 45.0;
+    curr_equ_posn.dec = 42.0;
     // libnova works in decimal degrees for RA
     curr_equ_posn.ra = (sidereal + (observer.lng / 360 * 24)) / 24 * 360; // deg
     if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
@@ -487,8 +495,10 @@ bool HASSTelescope::ReadScopeStatus()
     //LOGF_INFO("(TrackState == SCOPE_SLEWING) %i", (TrackState == SCOPE_SLEWING));
 
     if ((TrackState == SCOPE_SLEWING) && (abs(deltaSteps.stepRA) < 0.001) && (abs(deltaSteps.stepDec) < 0.001)) {
-        LOGF_INFO("Set TrackState == SCOPE_IDLE","");
-        TrackState == SCOPE_IDLE;
+        LOGF_INFO("Set TrackState == SCOPE_TRACKING","");
+        TrackState == SCOPE_TRACKING;
+        SetTrackEnabled(true);
+
     }
 
     //LOGF_INFO("deltaSteps.stepRA %f, currentSteps.stepRA %f, prevSteps.stepRA %f", deltaSteps.stepRA, currentSteps.stepRA, prevSteps.stepRA );
@@ -527,7 +537,7 @@ void HASSTelescope::TimerHit()
     double RAdrift;
 
     LOGF_INFO("--- TimerHit() called ---", "");
-    if (TrackState == SCOPE_IDLE) {
+    if (true) {
         currTime = Clock::now();
         time_span = std::chrono::duration_cast<std::chrono::duration<double>>(currTime - prevTime);
         //LOGF_INFO("time_span is %f sec", time_span.count());
