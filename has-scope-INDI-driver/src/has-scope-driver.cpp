@@ -46,6 +46,7 @@
 // Commands available
 #define TARGET_CMD  'T' 
 #define REQUESTPOS_CMD  'R' // Request the current position (in number of steps).
+#define TRACKING_CMD  'S' // Request the Track mode to enable.
 
 struct {
     double RA {0}; // hrs
@@ -266,6 +267,20 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
     
 }
 
+bool HASSTelescope::SetTrackEnabled(bool enabled)
+{
+     if (enabled)
+     {
+        SendCommand(TRACKING_CMD, 0, 0);
+        waitingOnSerialResponse = false;
+        return true;
+     }
+     else
+     {
+        return true;
+     }
+}
+
 int HASSTelescope::ReadResponse()
 {
     int nbytes = 0;
@@ -441,7 +456,6 @@ bool HASSTelescope::Goto(double ra, double dec)
 
     // Send new target to Arduino
     SendCommand(TARGET_CMD, targetSteps.stepRA, targetSteps.stepDec);
-
     waitingOnSerialResponse = false;
 
     // Mark state as slewing
@@ -495,10 +509,11 @@ bool HASSTelescope::ReadScopeStatus()
     //LOGF_INFO("(TrackState == SCOPE_SLEWING) %i", (TrackState == SCOPE_SLEWING));
 
     if ((TrackState == SCOPE_SLEWING) && (abs(deltaSteps.stepRA) < 0.001) && (abs(deltaSteps.stepDec) < 0.001)) {
-        LOGF_INFO("Set TrackState == SCOPE_TRACKING","");
-        TrackState == SCOPE_TRACKING;
-        SetTrackEnabled(true);
-
+        
+        //LOGF_INFO("Set TrackState == SCOPE_TRACKING","");
+        //TrackState == SCOPE_TRACKING;
+        //SetTrackMode(TRACK_SIDEREAL);
+        //SetTrackEnabled(true);
     }
 
     //LOGF_INFO("deltaSteps.stepRA %f, currentSteps.stepRA %f, prevSteps.stepRA %f", deltaSteps.stepRA, currentSteps.stepRA, prevSteps.stepRA );
