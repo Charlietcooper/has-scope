@@ -100,28 +100,6 @@ void loop() {
         break;
     }
     
-    /*
-    if (DISABLE_OUTPUT == false && messageCntr > 90000) {
-        Serial.print("Speed: "); 
-        Serial.print("AZI = ");
-        Serial.print(stepperAZI.speed()); 
-        Serial.print(" ALT = ");
-        Serial.println(stepperALT.speed()); 
-        Serial.print("Current Position: "); 
-        Serial.print(" AZI = ");
-        Serial.print(stepperAZI.currentPosition());   
-        Serial.print(" ALT = ");
-        Serial.println(stepperALT.currentPosition());
-        Serial.print("Target Position: "); 
-        Serial.print("AZI = ");
-        Serial.print(stepperAZI.targetPosition());   
-        Serial.print(" ALT = ");
-        Serial.println(stepperALT.targetPosition());
-
-        messageCntr = 0;
-    } else {
-      messageCntr++;
-    } */
 }
 
 void issueDriverCommand() {
@@ -146,7 +124,7 @@ void issueDriverCommand() {
 }
 
 void setToTrackMode() {
-  stepperAZI.setSpeed(sync_speed);
+  stepperAZI.setSpeed(-sync_speed);
   trackState = SCOPE_TRACKING;
 }
 

@@ -35,6 +35,7 @@ class HASSTelescope : public INDI::Telescope
     bool initProperties() override;
     virtual void TimerHit() override;
     bool SetTrackEnabled(bool enabled) override;
+    bool SetTrackMode(uint8_t mode) override;
 
     // Telescope specific functions
     bool ReadScopeStatus() override;

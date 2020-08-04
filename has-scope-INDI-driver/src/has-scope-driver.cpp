@@ -281,6 +281,11 @@ bool HASSTelescope::SetTrackEnabled(bool enabled)
      }
 }
 
+bool HASSTelescope::SetTrackMode(uint8_t mode)
+ {
+     return true;
+ }
+
 int HASSTelescope::ReadResponse()
 {
     int nbytes = 0;
@@ -386,8 +391,8 @@ bool HASSTelescope::Connect()
     }
 
     // Send a dummy postion request. No reply will come on the first attempt.
-    SendCommand(REQUESTPOS_CMD, 0, 0);
-    waitingOnSerialResponse = false ; 
+    //SendCommand(REQUESTPOS_CMD, 0, 0);
+    //waitingOnSerialResponse = false ; 
 
     bool status = true;
     return status;
@@ -442,17 +447,21 @@ bool HASSTelescope::Goto(double ra, double dec)
     fs_sexa(DecStr, target.Dec, 2, 3600);
 
     // Calculate difference between target and current position.
-    diffRA = target.RA - EqN[AXIS_RA].value;
+    if (EqN[AXIS_RA].value > target.RA) {
+        diffRA = (target.RA + 24.0) - EqN[AXIS_RA].value;
+    } else {
+        diffRA = target.RA - EqN[AXIS_RA].value;
+    }  
     diffDec = target.Dec - EqN[AXIS_DE].value;
-    //LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
+    LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
 
     diffStepRA = diffRA * PULSE_PER_RA;
     diffStepDec = diffDec * PULSE_PER_DEC;
-    //LOGF_INFO("diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
+    LOGF_INFO("diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
 
     targetSteps.stepRA = currentSteps.stepRA + diffStepRA;
     targetSteps.stepDec = currentSteps.stepDec + diffStepDec;
-    //LOGF_INFO("targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
+    LOGF_INFO("targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
 
     // Send new target to Arduino
     SendCommand(TARGET_CMD, targetSteps.stepRA, targetSteps.stepDec);
@@ -487,16 +496,15 @@ bool HASSTelescope::ReadScopeStatus()
     double sidereal;
     double localSidereal;
 
-    LOGF_INFO("---ReadScopeStatus()---", "");
-    LOGF_INFO("TrackState: %i", TrackState);
+    LOGF_INFO("---  ReadScopeStatus(): TrackState: %i", TrackState);
     
-    if (!waitingOnSerialResponse) {
+    if (waitingOnSerialResponse) {
+        LOGF_INFO("Already waiting on Serial Response. Just doing ReadResponse().", "");
         ReadResponse();
-        //LOGF_INFO("Already waiting on Serial Response. Just doing ReadResponse().", "");
     } else {
         //LOGF_INFO("Calling both SendCommand and ReadResponse.", "");
-        tcflush(fd, TCIOFLUSH);
-        SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
+        //tcflush(fd, TCIOFLUSH);
+        SendCommand(REQUESTPOS_CMD, 0, 0);
         ReadResponse();
     }
 
@@ -504,16 +512,12 @@ bool HASSTelescope::ReadScopeStatus()
     deltaSteps.stepRA = currentSteps.stepRA - prevSteps.stepRA;
     deltaSteps.stepDec = currentSteps.stepDec - prevSteps.stepDec;
 
-    //LOGF_INFO("(abs(deltaSteps.stepRA) < 0.001) %i", (abs(deltaSteps.stepRA) < 0.001));
-    //LOGF_INFO("(abs(deltaSteps.stepDec) < 0.001) %i", (abs(deltaSteps.stepDec) < 0.001));
-    //LOGF_INFO("(TrackState == SCOPE_SLEWING) %i", (TrackState == SCOPE_SLEWING));
-
     if ((TrackState == SCOPE_SLEWING) && (abs(deltaSteps.stepRA) < 0.001) && (abs(deltaSteps.stepDec) < 0.001)) {
         
-        //LOGF_INFO("Set TrackState == SCOPE_TRACKING","");
-        //TrackState == SCOPE_TRACKING;
-        //SetTrackMode(TRACK_SIDEREAL);
-        //SetTrackEnabled(true);
+        LOGF_INFO("Set TrackState == SCOPE_TRACKING","");
+        TrackState == SCOPE_TRACKING;
+        SetTrackMode(TRACK_SIDEREAL);
+        SetTrackEnabled(true);
     }
 
     //LOGF_INFO("deltaSteps.stepRA %f, currentSteps.stepRA %f, prevSteps.stepRA %f", deltaSteps.stepRA, currentSteps.stepRA, prevSteps.stepRA );
@@ -526,8 +530,7 @@ bool HASSTelescope::ReadScopeStatus()
     current.RA = (deltaSteps.stepRA / PULSE_PER_RA) + EqN[AXIS_RA].value; // hrs
     current.Dec = deltaSteps.stepDec / PULSE_PER_DEC + EqN[AXIS_DE].value;
 
-    // libnova works in decimal degrees
-    curr_equ_posn.ra = current.RA * 360 / 24;
+    curr_equ_posn.ra = current.RA * 360 / 24; // libnova works in decimal degrees
     curr_equ_posn.dec = current.Dec;
 
     NewRaDec(current.RA, current.Dec); // RA in hrs
@@ -551,23 +554,23 @@ void HASSTelescope::TimerHit()
     std::chrono::duration<double> time_span;
     double RAdrift;
 
-    LOGF_INFO("--- TimerHit() called ---", "");
+    LOGF_INFO("--- TimerHit() called ---.  WaitingOnSerialResponse %i", waitingOnSerialResponse);
+
     if (true) {
+        // Correct RaDec position to account for Earth rotation.
         currTime = Clock::now();
         time_span = std::chrono::duration_cast<std::chrono::duration<double>>(currTime - prevTime);
-        //LOGF_INFO("time_span is %f sec", time_span.count());
         prevTime = Clock::now();
         RAdrift = time_span.count() * RAdrift_1sec;
-        //LOGF_INFO("RAdrift is %f hrs", RAdrift);
         NewRaDec(EqN[AXIS_RA].value + RAdrift, EqN[AXIS_DE].value); // RA in hrs
     }
 
     if ( isConnected()) { // && TrackState == SCOPE_SLEWING
         //LOGF_INFO("IsConnected [and SCOPE_Slewing]. Calling REQUESTPOS_CMD", "");
-        if (!waitingOnSerialResponse) SendCommand(REQUESTPOS_CMD,0,0);
+        //if (!waitingOnSerialResponse) SendCommand(REQUESTPOS_CMD,0,0);
         ReadScopeStatus();
     } else {
-        //LOGF_INFO("not (IsConnected and SCOPE_Slewing). No action.", "");
+        //LOGF_INFO("not (IsConnected ). No action.", "");
     }
 
     SetTimer(POLLMS);
