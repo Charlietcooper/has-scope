@@ -367,7 +367,7 @@ int HASSTelescope::ReadResponse()
     } 
   
     currentSteps.stepRA = std::stoi(v[1].c_str());
-    currentSteps.stepDec = std::stoi(v[2].c_str());
+    currentSteps.stepDec = -std::stoi(v[2].c_str());
     //LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
 }
 
@@ -375,7 +375,8 @@ bool HASSTelescope::Connect()
 {
     LOGF_INFO("--- Connect() called. ---","");
 
-    const char*defaultPort = "/dev/ttyACM0";
+    // const char*defaultPort = "/dev/ttyACM0";
+    const char*defaultPort = "/dev/ttyUSB0";
     int err = TTY_OK;
 
     if (isConnected()) {
@@ -384,10 +385,10 @@ bool HASSTelescope::Connect()
     }
 
     if (tty_connect(defaultPort, 57600, 8, 0, 1, &fd) != TTY_OK) {
-        LOGF_INFO("tyy_connect failed.","");
+        LOGF_INFO("tty_connect failed.","");
         return false;
     } else {
-        LOGF_INFO("tyy_connect succeeded. File Descriptor is: %i", fd);
+        LOGF_INFO("tty_connect succeeded. File Descriptor is: %i", fd);
     }
 
     // Send a dummy postion request. No reply will come on the first attempt.
@@ -465,7 +466,7 @@ bool HASSTelescope::Goto(double ra, double dec)
     LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
 
     diffStepRA = diffRA * PULSE_PER_RA;
-    diffStepDec = diffDec * PULSE_PER_DEC;
+    diffStepDec = -diffDec * PULSE_PER_DEC;
     LOGF_INFO("diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
 
     targetSteps.stepRA = currentSteps.stepRA + diffStepRA;
