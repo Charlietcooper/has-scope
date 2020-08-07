@@ -434,6 +434,7 @@ bool HASSTelescope::Goto(double ra, double dec)
     char RAStr[64]={0}, DecStr[64]={0};
     double diffRA, diffDec;
     signed long diffStepRA, diffStepDec;
+    double edit_TargetRA, edit_currentRA;
 
     LOGF_INFO("--- Goto() ---", "");
 
@@ -447,11 +448,19 @@ bool HASSTelescope::Goto(double ra, double dec)
     fs_sexa(DecStr, target.Dec, 2, 3600);
 
     // Calculate difference between target and current position.
-    if (EqN[AXIS_RA].value > target.RA) {
-        diffRA = (target.RA + 24.0) - EqN[AXIS_RA].value;
+    
+    if (target.RA < 6 &&  EqN[AXIS_RA].value > 18 || EqN[AXIS_RA].value < 6 &&  target.RA > 18) {
+        // then it is possible the short path will cross the zero hours line.
+        if (target.RA < 6) edit_TargetRA = target.RA + 24; else edit_TargetRA = target.RA;
+         
+        if (EqN[AXIS_RA].value < 6) edit_currentRA = EqN[AXIS_RA].value + 24; else edit_currentRA = EqN[AXIS_RA].value;
+        LOGF_INFO("Edited RAs: target %f, current: %f", edit_TargetRA, edit_currentRA);
     } else {
-        diffRA = target.RA - EqN[AXIS_RA].value;
-    }  
+        edit_TargetRA = target.RA;
+        edit_currentRA = EqN[AXIS_RA].value;
+    }
+    diffRA = edit_TargetRA - edit_currentRA;
+    
     diffDec = target.Dec - EqN[AXIS_DE].value;
     LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
 
