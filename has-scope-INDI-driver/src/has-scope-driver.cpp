@@ -35,7 +35,7 @@
 
 #include "has-scope-driver.h"
 
-#define POLLMS 2000     // Poll time in milliseconds
+#define POLLMS 4000     // Poll time in milliseconds
 #define BUFFER_SIZE     40  // Maximum message length
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
@@ -44,9 +44,9 @@
 #define PULSE_PER_DEC 3777.77778  // Pulses per degree of Declination (deg)
 
 // Commands available
-#define TARGET_CMD  'T' 
-#define REQUESTPOS_CMD  'R' // Request the current position (in number of steps).
-#define TRACKING_CMD  'S' // Request the Track mode to enable.
+#define TARGET_CMD     'T' // The command for Goto.
+#define REQUESTPOS_CMD 'R' // Request the current position (in number of steps).
+#define TRACKING_CMD   'S' // Request the Track mode to enable.'S' for Sync.
 
 struct {
     double RA {0}; // hrs
@@ -367,7 +367,7 @@ int HASSTelescope::ReadResponse()
     } 
   
     currentSteps.stepRA = std::stoi(v[1].c_str());
-    currentSteps.stepDec = -std::stoi(v[2].c_str());
+    currentSteps.stepDec = std::stoi(v[2].c_str());
     //LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
 }
 
@@ -375,8 +375,8 @@ bool HASSTelescope::Connect()
 {
     LOGF_INFO("--- Connect() called. ---","");
 
-    // const char*defaultPort = "/dev/ttyACM0";
-    const char*defaultPort = "/dev/ttyUSB0";
+    const char*defaultPort = "/dev/ttyACM0";
+    //const char*defaultPort = "/dev/ttyUSB0";
     int err = TTY_OK;
 
     if (isConnected()) {
@@ -461,7 +461,7 @@ bool HASSTelescope::Goto(double ra, double dec)
         edit_currentRA = EqN[AXIS_RA].value;
     }
     diffRA = edit_TargetRA - edit_currentRA;
-    
+    LOGF_INFO("target.Dec: %f, EqN[AXIS_DE].value: %f", target.Dec, EqN[AXIS_DE].value);
     diffDec = target.Dec - EqN[AXIS_DE].value;
     LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
 
@@ -471,6 +471,7 @@ bool HASSTelescope::Goto(double ra, double dec)
 
     targetSteps.stepRA = currentSteps.stepRA + diffStepRA;
     targetSteps.stepDec = currentSteps.stepDec + diffStepDec;
+    LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
     LOGF_INFO("targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
 
     // Send new target to Arduino
@@ -538,7 +539,7 @@ bool HASSTelescope::ReadScopeStatus()
     //LOGF_INFO("curr_equ_posn.ra %f", curr_equ_posn.ra);
 
     current.RA = (deltaSteps.stepRA / PULSE_PER_RA) + EqN[AXIS_RA].value; // hrs
-    current.Dec = deltaSteps.stepDec / PULSE_PER_DEC + EqN[AXIS_DE].value;
+    current.Dec = -deltaSteps.stepDec / PULSE_PER_DEC + EqN[AXIS_DE].value;
 
     curr_equ_posn.ra = current.RA * 360 / 24; // libnova works in decimal degrees
     curr_equ_posn.dec = current.Dec;
@@ -564,7 +565,7 @@ void HASSTelescope::TimerHit()
     std::chrono::duration<double> time_span;
     double RAdrift;
 
-    LOGF_INFO("--- TimerHit() called ---.  WaitingOnSerialResponse %i", waitingOnSerialResponse);
+    //LOGF_INFO("--- TimerHit() called ---.  WaitingOnSerialResponse %i", waitingOnSerialResponse);
 
     if (true) {
         // Correct RaDec position to account for Earth rotation.
