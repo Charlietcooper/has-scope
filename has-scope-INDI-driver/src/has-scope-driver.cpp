@@ -47,6 +47,8 @@
 #define TARGET_CMD     'T' // The command for Goto.
 #define REQUESTPOS_CMD 'R' // Request the current position (in number of steps).
 #define TRACKING_CMD   'S' // Request the Track mode to enable.'S' for Sync.
+#define MOVE_NS_CMD    'N' // Request the manual Move UP/DOWN (North/South)
+#define MOVE_WE_CMD    'W' // Request the manual Move LEFT/RIGHT (West/East)
 
 struct {
     double RA {0}; // hrs
@@ -145,10 +147,9 @@ HASSTelescope::HASSTelescope()
 */
 
     SetTelescopeCapability(TELESCOPE_CAN_SYNC | TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT | \
-        TELESCOPE_HAS_LOCATION | TELESCOPE_HAS_TRACK_MODE | TELESCOPE_CAN_CONTROL_TRACK );
+        TELESCOPE_HAS_LOCATION | TELESCOPE_HAS_TRACK_MODE | TELESCOPE_HAS_TRACK_RATE );
     LOGF_INFO("\n------------------------------------------------------","");
     LOGF_INFO("Initializing HAS Telescope...","");
-
 }
 
 /**************************************************************************************
@@ -214,10 +215,9 @@ bool HASSTelescope::initProperties()
     prevSteps.stepRA = 0;
     prevSteps.stepDec = 0;
 
-    LOGF_INFO("\n------------------------------------------------------","");
+    LOGF_INFO("\n----- HAS-24 INDI driver start --------------------------------------------","");
     LOGF_INFO("Set initial position. RA %f deg, DEC %f deg", curr_equ_posn.ra, curr_equ_posn.dec);
     LOGF_INFO("Right Ascension in hours: %f", curr_equ_posn.ra / 360 * 24);
-    LOGF_INFO("System Julian date is %f", JD);
     LOGF_INFO("System Sidereal time is %f", sidereal);
     LOGF_INFO("System UTC Date is %i-%i-%i %i:%i:%f", date.years, date.months, date.days, date.hours, date.minutes, date.seconds);
     LOGF_INFO("Observer position is Latitude %f, Long %f", observer.lat, observer.lng);
@@ -241,26 +241,22 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
     char *ptrCmd = cmd;
     char hexbuf[3*BUFFER_SIZE];
 
-    LOGF_INFO("---Begin SendCommand()---","");
-
     if (waitingOnSerialResponse) {
-        LOGF_INFO("Already waiting on a response. Not sending command.","");
+        LOGF_INFO("-SendCommand(): Already waiting on a response. Not sending command.","");
     } else {
         cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>\n", cmd_op, stepRA, stepDec);
-        LOGF_INFO("Command sent was: %s", cmd);
+        LOGF_INFO("-SendCommand(): Sending command: %s", cmd);
         cmd_nbytes++;
         hexDump(hexbuf, cmd, cmd_nbytes);
         //LOGF_INFO("CMD as Hex (%s)", hexbuf);
 
-        //tcflush(fd, TCIOFLUSH);
         tcflush(fd, TCOFLUSH);
 
         if ((err = tty_write(fd, cmd, cmd_nbytes, &nbytes)) != TTY_OK)
         {
-            LOGF_INFO("tty_write Error: %i, %i bytes", err, nbytes);
+            LOGF_INFO("-SendCommand(): tty_write Error: %i, %i bytes", err, nbytes);
             return -5;
         } else {
-            //LOGF_INFO("Wrote cmd buffer to tty, %i bytes", nbytes);
             waitingOnSerialResponse = true;
         }
     }
@@ -303,8 +299,6 @@ int HASSTelescope::ReadResponse()
     char rc;
     char hexbuf[3*BUFFER_SIZE];
         
-    LOGF_INFO("--- ReadResponse() ---","");
-
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
       
 /*
@@ -328,9 +322,7 @@ int HASSTelescope::ReadResponse()
     recvInProgress = true;
     while (newData == false) {
         err = tty_read(fd, &rc, 1, ARDUINO_TIMEOUT, &nbytes);
-        //LOGF_INFO("Read: %c, byte number %i", rc, ndx);
         if (recvInProgress == true) {
-            //LOGF_INFO("rc %c, endMarker %c", rc, endMarker);
             if (rc != endMarker) {
                 rbuffer[ndx] = rc;
                 ndx++;
@@ -347,15 +339,13 @@ int HASSTelescope::ReadResponse()
  
         }
     }
-    LOGF_INFO("Received: %s", rbuffer);
+    LOGF_INFO("- ReadResponse(): Received: %s", rbuffer);
 
     waitingOnSerialResponse = false;
 
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
-    //LOGF_INFO("rbuffer Hex (%s)", hexbuf);
 
     // Update telescope position variables  
-
     std::string str = rbuffer; 
     std::vector<std::string> v; 
     std::stringstream ss(str);
@@ -373,29 +363,24 @@ int HASSTelescope::ReadResponse()
 
 bool HASSTelescope::Connect()
 {
-    LOGF_INFO("--- Connect() called. ---","");
-
     const char*defaultPort = "/dev/ttyACM0";
     //const char*defaultPort = "/dev/ttyUSB0";
     int err = TTY_OK;
+    bool status = false;
 
     if (isConnected()) {
-        LOGF_INFO("Connect(): Already connected, according to isConnected()","");
+        LOGF_INFO("-Connect(): Already connected, according to isConnected()","");
         return true;
     }
 
     if (tty_connect(defaultPort, 57600, 8, 0, 1, &fd) != TTY_OK) {
-        LOGF_INFO("tty_connect failed.","");
+        LOGF_INFO("-Connect(): tty_connect failed.","");
         return false;
     } else {
-        LOGF_INFO("tty_connect succeeded. File Descriptor is: %i", fd);
+        LOGF_INFO("-Connect(): tty_connect succeeded. File Descriptor is: %i", fd);
+        status = true;
     }
 
-    // Send a dummy postion request. No reply will come on the first attempt.
-    //SendCommand(REQUESTPOS_CMD, 0, 0);
-    //waitingOnSerialResponse = false ; 
-
-    bool status = true;
     return status;
 }
 
@@ -410,8 +395,8 @@ bool HASSTelescope::Handshake()
     int portFD = serialConnection->getPortFD();
     uint8_t wordSize = serialConnection->getWordSize();
 
-    LOGF_INFO("getPortFD: %s", portFD);
-    LOGF_INFO("getWordSize: %s", wordSize);
+    LOGF_INFO("-Handshake(): getPortFD: %s", portFD);
+    LOGF_INFO("-Handshake(): getWordSize: %s", wordSize);
 
     SendCommand(REQUESTPOS_CMD, currentSteps.stepRA, currentSteps.stepDec);
     ReadResponse();
@@ -437,12 +422,10 @@ bool HASSTelescope::Goto(double ra, double dec)
     signed long diffStepRA, diffStepDec;
     double edit_TargetRA, edit_currentRA;
 
-    LOGF_INFO("--- Goto() ---", "");
-
     target.RA  = ra;
     target.Dec = dec;
 
-    LOGF_INFO("target.RA: %f (hrs), target.Dec: %f", target.RA, target.Dec);
+    LOGF_INFO("-Goto(): target.RA: %f (hrs), target.Dec: %f", target.RA, target.Dec);
     
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, target.RA, 2, 3600);
@@ -455,24 +438,24 @@ bool HASSTelescope::Goto(double ra, double dec)
         if (target.RA < 6) edit_TargetRA = target.RA + 24; else edit_TargetRA = target.RA;
          
         if (EqN[AXIS_RA].value < 6) edit_currentRA = EqN[AXIS_RA].value + 24; else edit_currentRA = EqN[AXIS_RA].value;
-        LOGF_INFO("Edited RAs: target %f, current: %f", edit_TargetRA, edit_currentRA);
+        LOGF_INFO("-Goto(): Edited RAs: target %f, current: %f", edit_TargetRA, edit_currentRA);
     } else {
         edit_TargetRA = target.RA;
         edit_currentRA = EqN[AXIS_RA].value;
     }
     diffRA = edit_TargetRA - edit_currentRA;
-    LOGF_INFO("target.Dec: %f, EqN[AXIS_DE].value: %f", target.Dec, EqN[AXIS_DE].value);
+    LOGF_INFO("-Goto(): target.Dec: %f, EqN[AXIS_DE].value: %f", target.Dec, EqN[AXIS_DE].value);
     diffDec = target.Dec - EqN[AXIS_DE].value;
-    LOGF_INFO("diffRA: %f, diffDec: %f", diffRA, diffDec);
+    LOGF_INFO("-Goto(): diffRA: %f, diffDec: %f", diffRA, diffDec);
 
     diffStepRA = diffRA * PULSE_PER_RA;
     diffStepDec = -diffDec * PULSE_PER_DEC;
-    LOGF_INFO("diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
+    LOGF_INFO("-Goto(): diffStepRA: %i, diffStepDec: %i", diffStepRA, diffStepDec);
 
     targetSteps.stepRA = currentSteps.stepRA + diffStepRA;
     targetSteps.stepDec = currentSteps.stepDec + diffStepDec;
-    LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
-    LOGF_INFO("targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
+    LOGF_INFO("-Goto(): currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
+    LOGF_INFO("-Goto(): targetSteps.stepRA: %i, targetSteps.stepDec: %i", targetSteps.stepRA, targetSteps.stepDec);
 
     // Send new target to Arduino
     SendCommand(TARGET_CMD, targetSteps.stepRA, targetSteps.stepDec);
@@ -483,7 +466,7 @@ bool HASSTelescope::Goto(double ra, double dec)
 
     // Inform client we are slewing to a new position
     //LOGF_INFO("Slewing to RA: %s - DEC: %s", RAStr, DecStr);
-    LOGF_INFO("Slewing to stepRA %i, stepDec %i", targetSteps.stepRA, targetSteps.stepDec);
+    LOGF_INFO("-Goto(): Slewing to stepRA %i, stepDec %i", targetSteps.stepRA, targetSteps.stepDec);
 
     // Success!
     return true;
@@ -506,11 +489,9 @@ bool HASSTelescope::ReadScopeStatus()
 {
     double sidereal;
     double localSidereal;
-
-    LOGF_INFO("---  ReadScopeStatus(): TrackState: %i", TrackState);
     
     if (waitingOnSerialResponse) {
-        LOGF_INFO("Already waiting on Serial Response. Just doing ReadResponse().", "");
+        LOGF_INFO("-ReadScopeStatus(): Already waiting on Serial Response. Just doing ReadResponse().", "");
         ReadResponse();
     } else {
         //LOGF_INFO("Calling both SendCommand and ReadResponse.", "");
@@ -525,7 +506,7 @@ bool HASSTelescope::ReadScopeStatus()
 
     if ((TrackState == SCOPE_SLEWING) && (abs(deltaSteps.stepRA) < 0.001) && (abs(deltaSteps.stepDec) < 0.001)) {
         
-        LOGF_INFO("Set TrackState == SCOPE_TRACKING","");
+        LOGF_INFO("-ReadScopeStatus(): Set TrackState == SCOPE_TRACKING","");
         TrackState == SCOPE_TRACKING;
         SetTrackMode(TRACK_SIDEREAL);
         SetTrackEnabled(true);
@@ -548,8 +529,8 @@ bool HASSTelescope::ReadScopeStatus()
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    LOGF_INFO("EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
-    LOGF_INFO("EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
+    LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
+    LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
@@ -560,12 +541,40 @@ bool HASSTelescope::ReadScopeStatus()
     return true;
 }
 
+ bool HASSTelescope::MoveNS(INDI_DIR_NS dir, TelescopeMotionCommand command)
+ {
+    LOGF_INFO("-MoveNS(): dir: %i, TelescopeMotionCommand: %i", dir, command);
+    SendCommand(MOVE_NS_CMD, dir, command);
+    waitingOnSerialResponse = false;
+    sleep(1);
+    /*switch (command)
+    {
+        case MOTION_START:
+            SendCommand(MOVE_NS_CMD, dir, command);
+            waitingOnSerialResponse = false;
+            break;
+ 
+        case MOTION_STOP:
+            SendCommand(TARGET_CMD, currentSteps.stepRA, currentSteps.stepDec);
+            waitingOnSerialResponse = false;
+            break;
+    } */
+    return true;
+ }
+
+ bool HASSTelescope::MoveWE(INDI_DIR_WE dir, TelescopeMotionCommand command)
+ {
+    LOGF_INFO("-MoveWE(): dir: %i, TelescopeMotionCommand: %i", dir, command);
+    SendCommand(MOVE_WE_CMD, dir, command);
+    waitingOnSerialResponse = false;
+    sleep(1);
+    return true;
+ }
+
 void HASSTelescope::TimerHit()
 {
     std::chrono::duration<double> time_span;
     double RAdrift;
-
-    //LOGF_INFO("--- TimerHit() called ---.  WaitingOnSerialResponse %i", waitingOnSerialResponse);
 
     if (true) {
         // Correct RaDec position to account for Earth rotation.
@@ -576,9 +585,7 @@ void HASSTelescope::TimerHit()
         NewRaDec(EqN[AXIS_RA].value + RAdrift, EqN[AXIS_DE].value); // RA in hrs
     }
 
-    if ( isConnected()) { // && TrackState == SCOPE_SLEWING
-        //LOGF_INFO("IsConnected [and SCOPE_Slewing]. Calling REQUESTPOS_CMD", "");
-        //if (!waitingOnSerialResponse) SendCommand(REQUESTPOS_CMD,0,0);
+    if ( isConnected() ) { 
         ReadScopeStatus();
     } else {
         //LOGF_INFO("not (IsConnected ). No action.", "");
