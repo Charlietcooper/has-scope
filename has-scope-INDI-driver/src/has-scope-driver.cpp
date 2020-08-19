@@ -35,7 +35,7 @@
 
 #include "has-scope-driver.h"
 
-#define POLLMS 4000     // Poll time in milliseconds
+#define POLLMS 3000     // Poll time in milliseconds
 #define BUFFER_SIZE     40  // Maximum message length
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
@@ -568,6 +568,13 @@ bool HASSTelescope::ReadScopeStatus()
     SendCommand(MOVE_WE_CMD, dir, command);
     waitingOnSerialResponse = false;
     sleep(1);
+    return true;
+ }
+
+ bool HASSTelescope::Sync(double ra, double dec)
+ {
+    NewRaDec(ra, dec);
+    LOGF_INFO("-Sync(): RA: %f, Dec: %f ", ra, dec);
     return true;
  }
 

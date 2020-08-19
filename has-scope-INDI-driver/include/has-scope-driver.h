@@ -38,6 +38,7 @@ class HASSTelescope : public INDI::Telescope
     bool SetTrackMode(uint8_t mode) override;
     bool MoveNS(INDI_DIR_NS dir, TelescopeMotionCommand command) override;
     bool MoveWE(INDI_DIR_WE dir, TelescopeMotionCommand command) override;
+    bool Sync(double ra, double dec) override;
     bool Goto(double ra, double dec) override;
     bool Abort() override;
 
