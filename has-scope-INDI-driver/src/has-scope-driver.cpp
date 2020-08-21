@@ -202,7 +202,7 @@ bool HASSTelescope::initProperties()
     JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
-    curr_equ_posn.dec = 42.0;
+    curr_equ_posn.dec = 50.0;
     // libnova works in decimal degrees for RA
     curr_equ_posn.ra = (sidereal + (observer.lng / 360 * 24)) / 24 * 360; // deg
     if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
