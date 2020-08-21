@@ -363,9 +363,10 @@ int HASSTelescope::ReadResponse()
 
 bool HASSTelescope::Connect()
 {
-    const char*defaultPort = "/dev/ttyACM0";
-    //const char*defaultPort = "/dev/ttyUSB0";
+    const char* portOption1 = "/dev/ttyACM0";
+    const char* portOption2 = "/dev/ttyUSB0";
     int err = TTY_OK;
+    int baudRate = 57600;
     bool status = false;
 
     if (isConnected()) {
@@ -373,11 +374,17 @@ bool HASSTelescope::Connect()
         return true;
     }
 
-    if (tty_connect(defaultPort, 57600, 8, 0, 1, &fd) != TTY_OK) {
-        LOGF_INFO("-Connect(): tty_connect failed.","");
-        return false;
+    if (tty_connect(portOption1, baudRate, 8, 0, 1, &fd) != TTY_OK) {
+        LOGF_INFO("-Connect(): tty_connect failed on %s. Will retry on %s",portOption1, portOption2);
+        if (tty_connect(portOption2, baudRate, 8, 0, 1, &fd) != TTY_OK) {
+            LOGF_INFO("-Connect(): tty_connect failed on %s too.", portOption2);
+            return false;
+        } else {
+            LOGF_INFO("-Connect(): tty_connect succeeded.", "");
+            status = true;
+        }
     } else {
-        LOGF_INFO("-Connect(): tty_connect succeeded. File Descriptor is: %i", fd);
+        LOGF_INFO("-Connect(): tty_connect succeeded.", "");
         status = true;
     }
 
