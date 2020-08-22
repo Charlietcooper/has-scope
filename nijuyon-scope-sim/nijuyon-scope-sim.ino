@@ -1,9 +1,10 @@
 #include <AccelStepper.h>
 #include <MultiStepper.h>
+#include "FastAccelStepper.h"
 
 #define AZI_STEP  2 // Digital Pin 2
 #define AZI_DIR   3 // etc.
-#define ALT_STEP  4
+#define ALT_STEP  9 // for FastAccelStepper
 #define ALT_DIR   5
 
 #define DIRECTION_NORTH  0
@@ -34,10 +35,12 @@ const long ALT_LIM_LO = -500000;
 
 const boolean DISABLE_OUTPUT = true;
 
-const float maxALTspeed_SP = 750.0;    // Pulses to Drive Controller per second 
-const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
+//const float maxALTspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
+const long  maxALTspeed_SP = 1000;        // [FastAccelStepper] the parameter is microseconds/step !!!
 
+const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
+
 const float sync_speed = 5.0;        // pulses per sec. Track rate for Right Ascension.
 
 const byte numChars = 32;
@@ -66,7 +69,10 @@ unsigned long updateTime = time + 1000;
 const float RAdrift_1msec = 24.0 / 86400 / 1000;
 
 AccelStepper stepperAZI(AccelStepper::DRIVER, AZI_STEP, AZI_DIR);
-AccelStepper stepperALT(AccelStepper::DRIVER, ALT_STEP, ALT_DIR);
+//AccelStepper stepperALT(AccelStepper::DRIVER, ALT_STEP, ALT_DIR);
+
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper *stepperALT = engine.stepperA();
 
 void setup() {
    Serial.begin(57600);
@@ -74,8 +80,17 @@ void setup() {
    stepperAZI.setMaxSpeed(maxAZIspeed_SP);
    stepperAZI.setAcceleration(maxAZIspeed_SP / sec_to_max_speed); 
    
-   stepperALT.setMaxSpeed(maxALTspeed_SP); // 3.203125
-   stepperALT.setAcceleration(maxALTspeed_SP / sec_to_max_speed); 
+   //stepperALT.setMaxSpeed(maxALTspeed_SP); // 3.203125
+   //stepperALT.setAcceleration(maxALTspeed_SP / sec_to_max_speed); 
+
+   engine.init();
+   stepperALT->setDirectionPin(ALT_DIR);
+   stepperALT->setAutoEnable(true);
+
+   stepperALT->setSpeed(maxALTspeed_SP);    // the parameter is microseconds/step !!!
+   stepperALT->setAcceleration(maxALTspeed_SP / sec_to_max_speed);
+   stepperALT->getCurrentPosition();
+
 }
 
 void loop() {
@@ -103,11 +118,11 @@ void loop() {
         break;
       case SCOPE_SLEWING:
         stepperAZI.run();
-        stepperALT.run();
+        //stepperALT.run();
         break;
       case SCOPE_PARKING:
         stepperAZI.run();
-        stepperALT.run();
+        //stepperALT.run();
         break;
       case SCOPE_TRACKING:
         stepperAZI.runSpeed();
@@ -139,7 +154,7 @@ void issueDriverCommand() {
   }
   if (RecdALT != ALT_SP) { 
     ALT_SP = RecdALT;
-    stepperALT.moveTo(ALT_SP);
+    stepperALT->moveTo(ALT_SP);
   }
 }
 
@@ -159,11 +174,11 @@ void moveNorthSouth() {
     diffSteps = -stepSize;
   }
   if (motionCommand_NS == MOTION_START ) {
-    ALTTarget = stepperALT.currentPosition() + diffSteps;
-    stepperALT.moveTo(ALTTarget);
+    ALTTarget = stepperALT->getCurrentPosition() + diffSteps;
+    stepperALT->moveTo(ALTTarget);
     trackState = SCOPE_SLEWING;
   } else if (motionCommand_NS == MOTION_STOP) {
-    stepperALT.moveTo(stepperALT.currentPosition());
+    stepperALT->moveTo(stepperALT->getCurrentPosition());
     trackState = SCOPE_IDLE;
   }
 }
@@ -266,6 +281,6 @@ void sendCurrentPosition() {
     Serial.print("<U,");
     Serial.print(stepperAZI.currentPosition());
     Serial.print(",");
-    Serial.print(stepperALT.currentPosition());
+    Serial.print(stepperALT->getCurrentPosition());
     Serial.println(">");
 }
