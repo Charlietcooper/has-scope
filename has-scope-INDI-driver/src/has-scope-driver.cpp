@@ -41,7 +41,7 @@
 #define START_BYTE 0x3C
 #define END_BYTE 0x3E
 #define PULSE_PER_RA  17975.0     // Pulses per hour of Right Ascension (hrs)
-#define PULSE_PER_DEC 3777.77778  // Pulses per degree of Declination (deg)
+#define PULSE_PER_DEC 3989.16     // Pulses per degree of Declination (deg)
 
 // Commands available
 #define TARGET_CMD     'T' // The command for Goto.

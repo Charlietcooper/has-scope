@@ -34,8 +34,8 @@ const long ALT_LIM_LO = -500000;
 
 const boolean DISABLE_OUTPUT = true;
 
-const float maxALTspeed_SP = 900.0;    // Pulses to Drive Controller per second 
-const float maxAZIspeed_SP = 900.0;    // Pulses to Drive Controller per second 
+const float maxALTspeed_SP = 750.0;    // Pulses to Drive Controller per second 
+const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
 
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
 const float sync_speed = 5.0;        // pulses per sec. Track rate for Right Ascension.
