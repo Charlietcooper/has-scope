@@ -6,13 +6,24 @@
 #define ALT_STEP  4
 #define ALT_DIR   5
 
+#define DIRECTION_NORTH  0
+#define DIRECTION_SOUTH  1
+#define DIRECTION_WEST   0
+#define DIRECTION_EAST   1    
+#define MOTION_START     0
+#define MOTION_STOP      1
+
 enum scopeState {
    SCOPE_IDLE,
    SCOPE_SLEWING,
    SCOPE_TRACKING,
    SCOPE_PARKING,
-   SCOPE_PARKED
+   SCOPE_PARKED,
+   SCOPE_MANMOVE
 };
+
+long dir_NS, dir_WE;
+long motionCommand_NS, motionCommand_WE;
 
 scopeState trackState = SCOPE_IDLE;
 
@@ -23,7 +34,9 @@ const long ALT_LIM_LO = -500000;
 
 const boolean DISABLE_OUTPUT = true;
 
-const float max_speed_SP = 900.0;    // Steps per second (as per stepper motor library, not sure if this is what it does in reality
+const float maxALTspeed_SP = 750.0;    // Pulses to Drive Controller per second 
+const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
+
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
 const float sync_speed = 5.0;        // pulses per sec. Track rate for Right Ascension.
 
@@ -41,9 +54,12 @@ long messageCntr = 0;
 char receivedChars[numChars];   // an array to store the received data
 char tempChars[numChars];       // temporary array for use when parsing
 char RecdCMD;
+
 bool targetCMD = false;
 bool sendposCMD = false;
 bool trackCMD = false;
+bool MoveNS_CMD = false;
+bool MoveWE_CMD = false;
 
 unsigned long time = millis();
 unsigned long updateTime = time + 1000;
@@ -55,11 +71,11 @@ AccelStepper stepperALT(AccelStepper::DRIVER, ALT_STEP, ALT_DIR);
 void setup() {
    Serial.begin(57600);
 
-   stepperAZI.setMaxSpeed(max_speed_SP);
-   stepperAZI.setAcceleration(max_speed_SP / sec_to_max_speed); 
+   stepperAZI.setMaxSpeed(maxAZIspeed_SP);
+   stepperAZI.setAcceleration(maxAZIspeed_SP / sec_to_max_speed); 
    
-   stepperALT.setMaxSpeed(max_speed_SP * 1.0); // 3.203125
-   stepperALT.setAcceleration(max_speed_SP / sec_to_max_speed); 
+   stepperALT.setMaxSpeed(maxALTspeed_SP); // 3.203125
+   stepperALT.setAcceleration(maxALTspeed_SP / sec_to_max_speed); 
 }
 
 void loop() {
@@ -71,9 +87,13 @@ void loop() {
             // this temporary copy is necessary to protect the original data
             //   because strtok() used in parseData() replaces the commas with \0
         parseData();
+        
         if (sendposCMD) { sendCurrentPosition(); sendposCMD = false; }
         if (targetCMD) { issueDriverCommand(); targetCMD = false; }
         if (trackCMD) { setToTrackMode(); trackCMD = false; }
+        if (MoveNS_CMD) { moveNorthSouth(); MoveNS_CMD = false; }
+        if (MoveWE_CMD) { moveWestEast(); MoveWE_CMD = false; }
+        
         newData = false;
     }
 
@@ -128,6 +148,46 @@ void setToTrackMode() {
   trackState = SCOPE_TRACKING;
 }
 
+void moveNorthSouth() {
+  long diffSteps;
+  long ALTTarget;
+  int stepSize = 1000;
+  
+  if (dir_NS == DIRECTION_NORTH ) {
+    diffSteps = stepSize;
+  } else if (dir_NS == DIRECTION_SOUTH) {
+    diffSteps = -stepSize;
+  }
+  if (motionCommand_NS == MOTION_START ) {
+    ALTTarget = stepperALT.currentPosition() + diffSteps;
+    stepperALT.moveTo(ALTTarget);
+    trackState = SCOPE_SLEWING;
+  } else if (motionCommand_NS == MOTION_STOP) {
+    stepperALT.moveTo(stepperALT.currentPosition());
+    trackState = SCOPE_IDLE;
+  }
+}
+
+void moveWestEast() {
+  long diffSteps;
+  long AZITarget;
+  int stepSize = 1000;
+  
+  if (dir_WE == DIRECTION_WEST ) {
+    diffSteps = stepSize;
+  } else if (dir_WE == DIRECTION_EAST) {
+    diffSteps = -stepSize;
+  }
+  if (motionCommand_WE == MOTION_START ) {
+    AZITarget = stepperAZI.currentPosition() + diffSteps;
+    stepperAZI.moveTo(AZITarget);
+    trackState = SCOPE_SLEWING;
+  } else if (motionCommand_WE == MOTION_STOP) {
+    stepperAZI.moveTo(stepperAZI.currentPosition());
+    trackState = SCOPE_IDLE;
+  }
+}
+
 /* 
  *  Functions for received serial communication
  *  
@@ -169,7 +229,8 @@ void recvWithStartEndMarkers() {
 void parseData() {      // split the data into its parts
 
     char * strtokIndx; // this is used by strtok() as an index
-
+    int dir;
+    int motionCommand;
     // print the received messages
     //Serial.print("<");
     //Serial.print(tempChars);
@@ -190,6 +251,14 @@ void parseData() {      // split the data into its parts
       sendposCMD = true;
     } else if (RecdCMD == 'S') {
       trackCMD = true;
+    } else if (RecdCMD == 'N') {
+      MoveNS_CMD = true;
+      dir_NS = RecdAZI;
+      motionCommand_NS = RecdALT;
+    } else if (RecdCMD == 'W') {
+      MoveWE_CMD = true;
+      dir_WE = RecdAZI;
+      motionCommand_WE = RecdALT;
     }
 }
 

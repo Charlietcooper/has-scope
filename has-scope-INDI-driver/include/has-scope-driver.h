@@ -36,14 +36,16 @@ class HASSTelescope : public INDI::Telescope
     virtual void TimerHit() override;
     bool SetTrackEnabled(bool enabled) override;
     bool SetTrackMode(uint8_t mode) override;
+    bool MoveNS(INDI_DIR_NS dir, TelescopeMotionCommand command) override;
+    bool MoveWE(INDI_DIR_WE dir, TelescopeMotionCommand command) override;
+    bool Sync(double ra, double dec) override;
+    bool Goto(double ra, double dec) override;
+    bool Abort() override;
 
     // Telescope specific functions
     bool ReadScopeStatus() override;
-    bool Goto(double, double) override;
-    bool Abort() override;
     int ReadResponse();
     bool SendCommand(char cmd_op, signed long stepRA, signed long stepDec);
-
 
   private:
 
