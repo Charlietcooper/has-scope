@@ -255,12 +255,12 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
         if ((err = tty_write(fd, cmd, cmd_nbytes, &nbytes)) != TTY_OK)
         {
             LOGF_INFO("-SendCommand(): tty_write Error: %i, %i bytes", err, nbytes);
-            return -5;
+            return false;
         } else {
             waitingOnSerialResponse = true;
         }
     }
-    
+    return true;
 }
 
 bool HASSTelescope::SetTrackEnabled(bool enabled)
@@ -359,6 +359,8 @@ int HASSTelescope::ReadResponse()
     currentSteps.stepRA = std::stoi(v[1].c_str());
     currentSteps.stepDec = std::stoi(v[2].c_str());
     //LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
+
+    return 0;
 }
 
 bool HASSTelescope::Connect()
