@@ -37,7 +37,7 @@ const long ALT_LIM_LO = -500000;
 const boolean DISABLE_OUTPUT = true;
 
 //const float maxALTspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
-const long  maxALTspeed_SP = 333.33;        // [FastAccelStepper] the parameter is microseconds/step !!!
+const long  maxALTspeed_SP = 1000;        // [FastAccelStepper] the parameter is microseconds/step !!!
 
 const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
@@ -89,7 +89,7 @@ void setup() {
    stepperALT->setAutoEnable(true);
 
    stepperALT->setSpeed(maxALTspeed_SP);    // the parameter is microseconds/step !!!
-   stepperALT->setAcceleration(maxALTspeed_SP / sec_to_max_speed);
+   stepperALT->setAcceleration(100);
    stepperALT->getCurrentPosition();
 
 }
