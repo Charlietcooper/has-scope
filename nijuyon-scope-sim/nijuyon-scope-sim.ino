@@ -25,6 +25,7 @@ enum scopeState {
 
 long dir_NS, dir_WE;
 long motionCommand_NS, motionCommand_WE;
+const long MoveNS_Speed = 1000; // microseconds per step
 
 scopeState trackState = SCOPE_IDLE;
 
@@ -36,7 +37,7 @@ const long ALT_LIM_LO = -500000;
 const boolean DISABLE_OUTPUT = true;
 
 //const float maxALTspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
-const long  maxALTspeed_SP = 1000;        // [FastAccelStepper] the parameter is microseconds/step !!!
+const long  maxALTspeed_SP = 333.33;        // [FastAccelStepper] the parameter is microseconds/step !!!
 
 const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
@@ -175,10 +176,11 @@ void moveNorthSouth() {
   }
   if (motionCommand_NS == MOTION_START ) {
     ALTTarget = stepperALT->getCurrentPosition() + diffSteps;
-    stepperALT->moveTo(ALTTarget);
+    stepperALT->setSpeed(MoveNS_Speed);
+    stepperALT->move(diffSteps);
     trackState = SCOPE_SLEWING;
   } else if (motionCommand_NS == MOTION_STOP) {
-    stepperALT->moveTo(stepperALT->getCurrentPosition());
+    //stepperALT->setSpeed();
     trackState = SCOPE_IDLE;
   }
 }

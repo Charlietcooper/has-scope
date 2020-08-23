@@ -35,7 +35,7 @@
 
 #include "has-scope-driver.h"
 
-#define POLLMS 3000     // Poll time in milliseconds
+#define POLLMS 1000     // Poll time in milliseconds
 #define BUFFER_SIZE     40  // Maximum message length
 #define ARDUINO_TIMEOUT 5   // fd timeout in seconds
 #define START_BYTE 0x3C
@@ -245,7 +245,7 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
         LOGF_INFO("-SendCommand(): Already waiting on a response. Not sending command.","");
     } else {
         cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>\n", cmd_op, stepRA, stepDec);
-        LOGF_INFO("-SendCommand(): Sending command: %s", cmd);
+        //LOGF_INFO("-SendCommand(): Sending command: %s", cmd);
         cmd_nbytes++;
         hexDump(hexbuf, cmd, cmd_nbytes);
         //LOGF_INFO("CMD as Hex (%s)", hexbuf);
@@ -339,7 +339,7 @@ int HASSTelescope::ReadResponse()
  
         }
     }
-    LOGF_INFO("- ReadResponse(): Received: %s", rbuffer);
+    //LOGF_INFO("- ReadResponse(): Received: %s", rbuffer);
 
     waitingOnSerialResponse = false;
 
@@ -538,8 +538,8 @@ bool HASSTelescope::ReadScopeStatus()
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
-    LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
+    //LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
+    //LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
