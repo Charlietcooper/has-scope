@@ -30,7 +30,7 @@ scopeState trackState = SCOPE_IDLE;
 const long AZI_LIM_HI = 5000000;
 const long AZI_LIM_LO = -5000000;
 const long ALT_LIM_HI = 500000;
-const long ALT_LIM_LO = -500000;
+const long ALT_LIM_LO = 0;
 
 const boolean DISABLE_OUTPUT = true;
 
@@ -96,23 +96,29 @@ void loop() {
     }
 
     switch (trackState) {
+      
       case SCOPE_IDLE:
         // Do nothing.
         break;
+        
       case SCOPE_SLEWING:
         stepperAZI.run();
         stepperALT.run();
         break;
+        
       case SCOPE_PARKING:
         stepperAZI.run();
         stepperALT.run();
         break;
+        
       case SCOPE_TRACKING:
         stepperAZI.runSpeed();
         break;
+        
       case SCOPE_PARKED:
         // Do nothing
         break;
+        
       default:
         // Do nothing.
         break;
@@ -132,13 +138,15 @@ void issueDriverCommand() {
 
   // Issue moveTo if the setpoint has changed.
   if (RecdAZI != AZI_SP) { 
-    AZI_SP = RecdAZI;
+     AZI_SP = RecdAZI;
     stepperAZI.moveTo(AZI_SP);
   }
+  
   if (RecdALT != ALT_SP) { 
     ALT_SP = RecdALT;
     stepperALT.moveTo(ALT_SP);
   }
+  
 }
 
 void setToTrackMode() {
@@ -153,13 +161,16 @@ void moveNorthSouth() {
   
   if (dir_NS == DIRECTION_NORTH ) {
     diffSteps = stepSize;
+    
   } else if (dir_NS == DIRECTION_SOUTH) {
     diffSteps = -stepSize;
   }
+  
   if (motionCommand_NS == MOTION_START ) {
     ALTTarget = stepperALT.currentPosition() + diffSteps;
     stepperALT.moveTo(ALTTarget);
     trackState = SCOPE_SLEWING;
+    
   } else if (motionCommand_NS == MOTION_STOP) {
     stepperALT.moveTo(stepperALT.currentPosition());
     trackState = SCOPE_IDLE;
@@ -176,11 +187,15 @@ void moveWestEast() {
   } else if (dir_WE == DIRECTION_EAST) {
     diffSteps = -stepSize;
   }
+  
   if (motionCommand_WE == MOTION_START ) {
+    
     AZITarget = stepperAZI.currentPosition() + diffSteps;
     stepperAZI.moveTo(AZITarget);
     trackState = SCOPE_SLEWING;
+    
   } else if (motionCommand_WE == MOTION_STOP) {
+    
     stepperAZI.moveTo(stepperAZI.currentPosition());
     trackState = SCOPE_IDLE;
   }
@@ -245,14 +260,18 @@ void parseData() {      // split the data into its parts
 
     if (RecdCMD == 'T') {
       targetCMD = true;
+      
     } else if (RecdCMD == 'R') {
       sendposCMD = true;
+      
     } else if (RecdCMD == 'S') {
       trackCMD = true;
+      
     } else if (RecdCMD == 'N') {
       MoveNS_CMD = true;
       dir_NS = RecdAZI;
       motionCommand_NS = RecdALT;
+      
     } else if (RecdCMD == 'W') {
       MoveWE_CMD = true;
       dir_WE = RecdAZI;
