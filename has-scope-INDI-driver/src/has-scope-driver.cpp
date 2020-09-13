@@ -41,13 +41,14 @@
 #define START_BYTE 0x3C
 #define END_BYTE 0x3E
 #define PULSE_PER_RA  17975.0     // Pulses per hour of Right Ascension (hrs)
-#define PULSE_PER_DEC 3989.16     // Pulses per degree of Declination (deg)
+#define PULSE_PER_DEC 1994.58     // Pulses per degree of Declination (deg)
 
 // Commands available
 #define TARGET_CMD     'T' // The command for Goto.
 #define REQUESTPOS_CMD 'R' // Request the current position (in number of steps).
 #define TRACKING_CMD   'S' // Request the Track mode to enable.'S' for Sync.
 #define MOVE_NS_CMD    'N' // Request the manual Move UP/DOWN (North/South)
+
 #define MOVE_WE_CMD    'W' // Request the manual Move LEFT/RIGHT (West/East)
 
 struct {
@@ -202,7 +203,7 @@ bool HASSTelescope::initProperties()
     JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
-    curr_equ_posn.dec = 50.0;
+    curr_equ_posn.dec = 47.13;
     // libnova works in decimal degrees for RA
     curr_equ_posn.ra = (sidereal + (observer.lng / 360 * 24)) / 24 * 360; // deg
     if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
