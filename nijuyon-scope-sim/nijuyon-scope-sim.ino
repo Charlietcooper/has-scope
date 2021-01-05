@@ -10,8 +10,8 @@
 #define DIRECTION_SOUTH  1
 #define DIRECTION_WEST   0
 #define DIRECTION_EAST   1    
-#define MOTION_START     0
-#define MOTION_STOP      1
+#define MOTION_START     0 // from INDILIB. i.e. enum TelescopeMotionCommand {MOTION_START = 0, MOTION_STOP};
+#define MOTION_STOP      1 // from INDILIB 
 
 enum scopeState {
    SCOPE_IDLE,
@@ -30,9 +30,11 @@ scopeState trackState = SCOPE_IDLE;
 const long AZI_LIM_HI = 5000000;
 const long AZI_LIM_LO = -5000000;
 const long ALT_LIM_HI = 500000;
-const long ALT_LIM_LO = -500000;
+const long ALT_LIM_LO = 0;
 
 const boolean DISABLE_OUTPUT = true;
+
+const float manualSpeedSP = 600;   // The speed used for the MoveNorthSouth and MoveWestEast movements. 
 
 const float maxALTspeed_SP = 750.0;    // Pulses to Drive Controller per second 
 const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
@@ -98,23 +100,34 @@ void loop() {
     }
 
     switch (trackState) {
+      
       case SCOPE_IDLE:
         // Do nothing.
         break;
+        
       case SCOPE_SLEWING:
         stepperAZI.run();
         stepperALT.run();
         break;
+        
       case SCOPE_PARKING:
         stepperAZI.run();
         stepperALT.run();
         break;
+        
       case SCOPE_TRACKING:
         stepperAZI.runSpeed();
         break;
+        
       case SCOPE_PARKED:
         // Do nothing
         break;
+
+      case SCOPE_MANMOVE:
+        stepperAZI.runSpeed();
+        stepperALT.runSpeed();
+        break;
+        
       default:
         // Do nothing.
         break;
@@ -132,15 +145,29 @@ void issueDriverCommand() {
   if (RecdALT > ALT_LIM_HI) { RecdALT = ALT_LIM_HI; }
   if (RecdALT < ALT_LIM_LO) { RecdALT = ALT_LIM_LO; }
 
+  // stop the stepper motors 
+  stepperAZI.stop();
+  stepperALT.stop();
+  
+  // Reset the movement rate and acceleration parameters.
+  stepperAZI.setMaxSpeed(maxAZIspeed_SP);
+  stepperAZI.setAcceleration(maxAZIspeed_SP / sec_to_max_speed); 
+  stepperALT.setMaxSpeed(maxALTspeed_SP * 1.0); // 3.203125
+  stepperALT.setAcceleration(maxALTspeed_SP / sec_to_max_speed); 
+  stepperAZI.run();
+  stepperALT.run();
+
   // Issue moveTo if the setpoint has changed.
   if (RecdAZI != AZI_SP) { 
     AZI_SP = RecdAZI;
     stepperAZI.moveTo(AZI_SP);
   }
+  
   if (RecdALT != ALT_SP) { 
     ALT_SP = RecdALT;
     stepperALT.moveTo(ALT_SP);
   }
+  
 }
 
 void setToTrackMode() {
@@ -151,19 +178,23 @@ void setToTrackMode() {
 void moveNorthSouth() {
   long diffSteps;
   long ALTTarget;
-  int stepSize = 1000;
+  int stepSize = 50;
   
   if (dir_NS == DIRECTION_NORTH ) {
     diffSteps = stepSize;
+    
   } else if (dir_NS == DIRECTION_SOUTH) {
     diffSteps = -stepSize;
   }
+  
   if (motionCommand_NS == MOTION_START ) {
     ALTTarget = stepperALT.currentPosition() + diffSteps;
     stepperALT.moveTo(ALTTarget);
-    trackState = SCOPE_SLEWING;
+    stepperALT.setSpeed(manualSpeedSP);
+    trackState = SCOPE_MANMOVE;
+    
   } else if (motionCommand_NS == MOTION_STOP) {
-    stepperALT.moveTo(stepperALT.currentPosition());
+    stepperALT.stop();
     trackState = SCOPE_IDLE;
   }
 }
@@ -171,19 +202,24 @@ void moveNorthSouth() {
 void moveWestEast() {
   long diffSteps;
   long AZITarget;
-  int stepSize = 1000;
+  int stepSize = 50;
   
   if (dir_WE == DIRECTION_WEST ) {
     diffSteps = stepSize;
   } else if (dir_WE == DIRECTION_EAST) {
     diffSteps = -stepSize;
   }
+  
   if (motionCommand_WE == MOTION_START ) {
+    
     AZITarget = stepperAZI.currentPosition() + diffSteps;
     stepperAZI.moveTo(AZITarget);
-    trackState = SCOPE_SLEWING;
+    stepperAZI.setSpeed(manualSpeedSP);
+    trackState = SCOPE_MANMOVE;
+    
   } else if (motionCommand_WE == MOTION_STOP) {
-    stepperAZI.moveTo(stepperAZI.currentPosition());
+    
+    stepperAZI.stop();
     trackState = SCOPE_IDLE;
   }
 }
@@ -247,17 +283,21 @@ void parseData() {      // split the data into its parts
 
     if (RecdCMD == 'T') {
       targetCMD = true;
+      
     } else if (RecdCMD == 'R') {
       sendposCMD = true;
+      
     } else if (RecdCMD == 'S') {
       trackCMD = true;
+      
     } else if (RecdCMD == 'N') {
       MoveNS_CMD = true;
       dir_NS = RecdAZI;
       motionCommand_NS = RecdALT;
+      
     } else if (RecdCMD == 'W') {
       MoveWE_CMD = true;
-      dir_WE = RecdAZI;
+      dir_WE = RecdALT;
       motionCommand_WE = RecdALT;
     }
 }
