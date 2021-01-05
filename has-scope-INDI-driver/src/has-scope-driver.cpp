@@ -202,7 +202,7 @@ bool HASSTelescope::initProperties()
     JD = ln_get_julian_from_sys();
     ln_get_date_from_sys(&date);
     sidereal = ln_get_apparent_sidereal_time(JD);
-    curr_equ_posn.dec = 50.0;
+    curr_equ_posn.dec = 47.28; // 5 degrees Altitude
     // libnova works in decimal degrees for RA
     curr_equ_posn.ra = (sidereal + (observer.lng / 360 * 24)) / 24 * 360; // deg
     if (curr_equ_posn.ra > 360) curr_equ_posn.ra = curr_equ_posn.ra - 360;
@@ -555,7 +555,7 @@ bool HASSTelescope::ReadScopeStatus()
     LOGF_INFO("-MoveNS(): dir: %i, TelescopeMotionCommand: %i", dir, command);
     SendCommand(MOVE_NS_CMD, dir, command);
     waitingOnSerialResponse = false;
-    sleep(1);
+    sleep(0.33);
     /*switch (command)
     {
         case MOTION_START:
@@ -576,7 +576,7 @@ bool HASSTelescope::ReadScopeStatus()
     LOGF_INFO("-MoveWE(): dir: %i, TelescopeMotionCommand: %i", dir, command);
     SendCommand(MOVE_WE_CMD, dir, command);
     waitingOnSerialResponse = false;
-    sleep(1);
+    sleep(0.33);
     return true;
  }
 

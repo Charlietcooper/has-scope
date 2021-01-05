@@ -10,8 +10,8 @@
 #define DIRECTION_SOUTH  1
 #define DIRECTION_WEST   0
 #define DIRECTION_EAST   1    
-#define MOTION_START     0
-#define MOTION_STOP      1
+#define MOTION_START     0 // from INDILIB. i.e. enum TelescopeMotionCommand {MOTION_START = 0, MOTION_STOP};
+#define MOTION_STOP      1 // from INDILIB 
 
 enum scopeState {
    SCOPE_IDLE,
@@ -35,6 +35,7 @@ const long ALT_LIM_LO = 0;
 const boolean DISABLE_OUTPUT = true;
 
 const float max_speed_SP = 900.0;    // Pulses per second (as per stepper motor library, not sure if this is what it does in reality
+const float manualSpeedSP = 600;   // The speed used for the MoveNorthSouth and MoveWestEast movements. 
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
 const float sync_speed = 5.0;        // pulses per sec. Track rate for Right Ascension.
 
@@ -118,6 +119,11 @@ void loop() {
       case SCOPE_PARKED:
         // Do nothing
         break;
+
+      case SCOPE_MANMOVE:
+        stepperAZI.runSpeed();
+        stepperALT.runSpeed();
+        break;
         
       default:
         // Do nothing.
@@ -136,9 +142,21 @@ void issueDriverCommand() {
   if (RecdALT > ALT_LIM_HI) { RecdALT = ALT_LIM_HI; }
   if (RecdALT < ALT_LIM_LO) { RecdALT = ALT_LIM_LO; }
 
+  // stop the stepper motors 
+  stepperAZI.stop();
+  stepperALT.stop();
+  
+  // Reset the movement rate and acceleration parameters.
+  stepperAZI.setMaxSpeed(max_speed_SP);
+  stepperAZI.setAcceleration(max_speed_SP / sec_to_max_speed); 
+  stepperALT.setMaxSpeed(max_speed_SP * 1.0); // 3.203125
+  stepperALT.setAcceleration(max_speed_SP / sec_to_max_speed); 
+  stepperAZI.run();
+  stepperALT.run();
+
   // Issue moveTo if the setpoint has changed.
   if (RecdAZI != AZI_SP) { 
-     AZI_SP = RecdAZI;
+    AZI_SP = RecdAZI;
     stepperAZI.moveTo(AZI_SP);
   }
   
@@ -157,7 +175,7 @@ void setToTrackMode() {
 void moveNorthSouth() {
   long diffSteps;
   long ALTTarget;
-  int stepSize = 1000;
+  int stepSize = 50;
   
   if (dir_NS == DIRECTION_NORTH ) {
     diffSteps = stepSize;
@@ -169,10 +187,11 @@ void moveNorthSouth() {
   if (motionCommand_NS == MOTION_START ) {
     ALTTarget = stepperALT.currentPosition() + diffSteps;
     stepperALT.moveTo(ALTTarget);
-    trackState = SCOPE_SLEWING;
+    stepperALT.setSpeed(manualSpeedSP);
+    trackState = SCOPE_MANMOVE;
     
   } else if (motionCommand_NS == MOTION_STOP) {
-    stepperALT.moveTo(stepperALT.currentPosition());
+    stepperALT.stop();
     trackState = SCOPE_IDLE;
   }
 }
@@ -180,7 +199,7 @@ void moveNorthSouth() {
 void moveWestEast() {
   long diffSteps;
   long AZITarget;
-  int stepSize = 1000;
+  int stepSize = 50;
   
   if (dir_WE == DIRECTION_WEST ) {
     diffSteps = stepSize;
@@ -192,11 +211,12 @@ void moveWestEast() {
     
     AZITarget = stepperAZI.currentPosition() + diffSteps;
     stepperAZI.moveTo(AZITarget);
-    trackState = SCOPE_SLEWING;
+    stepperAZI.setSpeed(manualSpeedSP);
+    trackState = SCOPE_MANMOVE;
     
   } else if (motionCommand_WE == MOTION_STOP) {
     
-    stepperAZI.moveTo(stepperAZI.currentPosition());
+    stepperAZI.stop();
     trackState = SCOPE_IDLE;
   }
 }
@@ -274,7 +294,7 @@ void parseData() {      // split the data into its parts
       
     } else if (RecdCMD == 'W') {
       MoveWE_CMD = true;
-      dir_WE = RecdAZI;
+      dir_WE = RecdALT;
       motionCommand_WE = RecdALT;
     }
 }
