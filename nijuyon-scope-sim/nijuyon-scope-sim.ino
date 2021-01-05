@@ -34,8 +34,11 @@ const long ALT_LIM_LO = 0;
 
 const boolean DISABLE_OUTPUT = true;
 
-const float max_speed_SP = 900.0;    // Pulses per second (as per stepper motor library, not sure if this is what it does in reality
 const float manualSpeedSP = 600;   // The speed used for the MoveNorthSouth and MoveWestEast movements. 
+
+const float maxALTspeed_SP = 750.0;    // Pulses to Drive Controller per second 
+const float maxAZIspeed_SP = 1000.0;    // Pulses to Drive Controller per second 
+
 const float sec_to_max_speed = 10.0; // Seconds to go from zero to max speed
 const float sync_speed = 5.0;        // pulses per sec. Track rate for Right Ascension.
 
@@ -70,11 +73,11 @@ AccelStepper stepperALT(AccelStepper::DRIVER, ALT_STEP, ALT_DIR);
 void setup() {
    Serial.begin(57600);
 
-   stepperAZI.setMaxSpeed(max_speed_SP);
-   stepperAZI.setAcceleration(max_speed_SP / sec_to_max_speed); 
+   stepperAZI.setMaxSpeed(maxAZIspeed_SP);
+   stepperAZI.setAcceleration(maxAZIspeed_SP / sec_to_max_speed); 
    
-   stepperALT.setMaxSpeed(max_speed_SP * 1.0); // 3.203125
-   stepperALT.setAcceleration(max_speed_SP / sec_to_max_speed); 
+   stepperALT.setMaxSpeed(maxALTspeed_SP); // 3.203125
+   stepperALT.setAcceleration(maxALTspeed_SP / sec_to_max_speed); 
 }
 
 void loop() {
@@ -147,10 +150,10 @@ void issueDriverCommand() {
   stepperALT.stop();
   
   // Reset the movement rate and acceleration parameters.
-  stepperAZI.setMaxSpeed(max_speed_SP);
-  stepperAZI.setAcceleration(max_speed_SP / sec_to_max_speed); 
-  stepperALT.setMaxSpeed(max_speed_SP * 1.0); // 3.203125
-  stepperALT.setAcceleration(max_speed_SP / sec_to_max_speed); 
+  stepperAZI.setMaxSpeed(maxAZIspeed_SP);
+  stepperAZI.setAcceleration(maxAZIspeed_SP / sec_to_max_speed); 
+  stepperALT.setMaxSpeed(maxALTspeed_SP * 1.0); // 3.203125
+  stepperALT.setAcceleration(maxALTspeed_SP / sec_to_max_speed); 
   stepperAZI.run();
   stepperALT.run();
 

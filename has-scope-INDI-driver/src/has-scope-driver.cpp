@@ -41,13 +41,14 @@
 #define START_BYTE 0x3C
 #define END_BYTE 0x3E
 #define PULSE_PER_RA  17975.0     // Pulses per hour of Right Ascension (hrs)
-#define PULSE_PER_DEC 3777.77778  // Pulses per degree of Declination (deg)
+#define PULSE_PER_DEC 1994.58     // Pulses per degree of Declination (deg)
 
 // Commands available
 #define TARGET_CMD     'T' // The command for Goto.
 #define REQUESTPOS_CMD 'R' // Request the current position (in number of steps).
 #define TRACKING_CMD   'S' // Request the Track mode to enable.'S' for Sync.
 #define MOVE_NS_CMD    'N' // Request the manual Move UP/DOWN (North/South)
+
 #define MOVE_WE_CMD    'W' // Request the manual Move LEFT/RIGHT (West/East)
 
 struct {
