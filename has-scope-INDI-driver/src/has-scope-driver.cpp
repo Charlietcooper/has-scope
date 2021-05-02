@@ -21,6 +21,7 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 #include <sstream>
 
 #include <libnova/transform.h>
@@ -76,6 +77,90 @@ const double RAdrift_1sec = 24.0 / 86400.0;
 
 bool waitingOnSerialResponse = false;
 
+class RingBuffer
+{
+private:
+    std::vector<char> containerRingBuffer;
+    int readIndex;
+    int writeIndex;
+    int size;
+    
+    bool isEmpty()
+    {
+        /* check if the buffer is empty or not. */
+        return readIndex == -1;
+    }
+    
+    bool isFull()
+    {
+        /* check if the buffer is full or not. */
+        return ((writeIndex + 1) % size) == readIndex;
+    }
+    
+public:
+    RingBuffer(int inputSizeValue)
+    {
+        size = inputSizeValue;
+        containerRingBuffer.resize(size);
+        readIndex = -1;
+        writeIndex = -1;
+    }
+    
+    bool enqueueValue(char inputValue)
+    {
+        /* insert an element into the circular queue.
+        return true if the operation is successful. */
+        if (isFull())
+        {
+            return false;
+        }
+        if (isEmpty())
+        {
+            readIndex = 0;
+        }
+        writeIndex = (writeIndex + 1) % size;
+        containerRingBuffer[writeIndex] = inputValue;
+        return true;
+    }
+    
+    char dequeueValue()
+    {
+        char value;
+
+        /* delete an element from the circular queue.
+        return the value if the operation is successful. */
+        if (isEmpty())
+        {
+            return 'Z';
+        }
+        if (readIndex == writeIndex) // There is just one element remaining.
+        {
+            value = containerRingBuffer[readIndex];
+            // Clear the buffer
+            readIndex = -1;
+            writeIndex = -1;
+
+            return value;
+        }
+        readIndex = (readIndex + 1) % size;
+        return containerRingBuffer[readIndex];
+    }
+
+    std::string print() 
+    {   
+        std::string s;
+        for (char c: containerRingBuffer) {
+            s.push_back(c);
+        }
+        return s;
+    }
+};
+
+// Create a ring buffer to receive commands send from Stellarium
+RingBuffer CmdBuffer(10); 
+
+
+// Create the Telescope object
 static std::unique_ptr<HASSTelescope> HASScope(new HASSTelescope());
 
 void hexDump(char *buf, const char *data, int size)
@@ -345,6 +430,12 @@ int HASSTelescope::ReadResponse()
     waitingOnSerialResponse = false;
 
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
+    std::string str = rbuffer; 
+    // If the received command is a manual move then add to the ring buffer
+    if (str[1] == MOVE_NS_CMD | str[1] == MOVE_WE_CMD)
+    {
+        CmdBuffer.enqueueValue(str[1]);
+    }
 
     // Update telescope position variables  
     std::string str = rbuffer; 
@@ -554,30 +645,21 @@ bool HASSTelescope::ReadScopeStatus()
  bool HASSTelescope::MoveNS(INDI_DIR_NS dir, TelescopeMotionCommand command)
  {
     LOGF_INFO("-MoveNS(): dir: %i, TelescopeMotionCommand: %i", dir, command);
+    std::string theRingBuffer = CmdBuffer.print();
+    LOGF_INFO("-RingBuffer: %i", theRingBuffer);
     SendCommand(MOVE_NS_CMD, dir, command);
     waitingOnSerialResponse = false;
-    sleep(0.33);
-    /*switch (command)
-    {
-        case MOTION_START:
-            SendCommand(MOVE_NS_CMD, dir, command);
-            waitingOnSerialResponse = false;
-            break;
- 
-        case MOTION_STOP:
-            SendCommand(TARGET_CMD, currentSteps.stepRA, currentSteps.stepDec);
-            waitingOnSerialResponse = false;
-            break;
-    } */
+  
     return true;
  }
 
  bool HASSTelescope::MoveWE(INDI_DIR_WE dir, TelescopeMotionCommand command)
  {
     LOGF_INFO("-MoveWE(): dir: %i, TelescopeMotionCommand: %i", dir, command);
+    std::string theRingBuffer = CmdBuffer.print();
+    LOGF_INFO("-RingBuffer: %i", theRingBuffer);
     SendCommand(MOVE_WE_CMD, dir, command);
     waitingOnSerialResponse = false;
-    sleep(0.33);
     return true;
  }
 
