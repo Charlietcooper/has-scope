@@ -157,7 +157,7 @@ public:
 };
 
 // Create a ring buffer to receive commands send from Stellarium
-RingBuffer CmdBuffer(10); 
+RingBuffer CmdBuffer(16); 
 
 
 // Create the Telescope object
@@ -328,10 +328,10 @@ bool HASSTelescope::SendCommand(char cmd_op, signed long stepRA, signed long ste
     char hexbuf[3*BUFFER_SIZE];
 
     if (waitingOnSerialResponse) {
-        LOGF_INFO("-SendCommand(): Already waiting on a response. Not sending command.","");
+        //LOGF_INFO("-SendCommand(): Already waiting on a response. Not sending command.","");
     } else {
         cmd_nbytes = sprintf(cmd, "<%c,%ld,%ld>\n", cmd_op, stepRA, stepDec);
-        LOGF_INFO("-SendCommand(): Sending command: %s", cmd);
+        //LOGF_INFO("-SendCommand(): Sending command: %s", cmd);
         cmd_nbytes++;
         hexDump(hexbuf, cmd, cmd_nbytes);
         //LOGF_INFO("CMD as Hex (%s)", hexbuf);
@@ -430,12 +430,17 @@ int HASSTelescope::ReadResponse()
     waitingOnSerialResponse = false;
 
     hexDump(hexbuf, rbuffer, BUFFER_SIZE);
-    std::string str = rbuffer; 
+    /*
+    std::string mystr = rbuffer; 
     // If the received command is a manual move then add to the ring buffer
-    if (str[1] == MOVE_NS_CMD | str[1] == MOVE_WE_CMD)
+    if (mystr[1] == MOVE_NS_CMD | mystr[1] == MOVE_WE_CMD)
     {
-        CmdBuffer.enqueueValue(str[1]);
+        int CmdBuffResp = CmdBuffer.enqueueValue(mystr[1]);
+        if (CmdBuffResp == false) {
+            LOGF_INFO("- ReadResponse(): CmdBuffer full. Move command ignored.", CmdBuffResp);
+        }
     }
+    */
 
     // Update telescope position variables  
     std::string str = rbuffer; 
@@ -450,7 +455,7 @@ int HASSTelescope::ReadResponse()
   
     currentSteps.stepRA = std::stoi(v[1].c_str());
     currentSteps.stepDec = std::stoi(v[2].c_str());
-    //LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
+    LOGF_INFO("currentSteps.stepRA: %i, currentSteps.stepDec: %i", currentSteps.stepRA, currentSteps.stepDec);
 
     return 0;
 }
@@ -592,7 +597,7 @@ bool HASSTelescope::ReadScopeStatus()
     double localSidereal;
     
     if (waitingOnSerialResponse) {
-        LOGF_INFO("-ReadScopeStatus(): Already waiting on Serial Response. Just doing ReadResponse().", "");
+        //LOGF_INFO("-ReadScopeStatus(): Already waiting on Serial Response. Just doing ReadResponse().", "");
         ReadResponse();
     } else {
         //LOGF_INFO("Calling both SendCommand and ReadResponse.", "");
@@ -630,8 +635,8 @@ bool HASSTelescope::ReadScopeStatus()
 
     char RAStr[64]={0}, DecStr[64]={0};
 
-    LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
-    LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
+    //LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_RA].value is %f hrs",  EqN[AXIS_RA].value);
+    //LOGF_INFO("-ReadScopeStatus(): EqN[AXIS_DE].value is %f deg",  EqN[AXIS_DE].value);
 
     // Parse the RA/DEC into strings
     fs_sexa(RAStr, curr_equ_posn.ra, 2, 3600);
@@ -645,9 +650,15 @@ bool HASSTelescope::ReadScopeStatus()
  bool HASSTelescope::MoveNS(INDI_DIR_NS dir, TelescopeMotionCommand command)
  {
     LOGF_INFO("-MoveNS(): dir: %i, TelescopeMotionCommand: %i", dir, command);
-    std::string theRingBuffer = CmdBuffer.print();
-    LOGF_INFO("-RingBuffer: %i", theRingBuffer);
-    SendCommand(MOVE_NS_CMD, dir, command);
+
+    int CmdBuffResp = CmdBuffer.enqueueValue('N');
+    if (CmdBuffResp == false) {
+        LOGF_INFO("- ReadResponse(): CmdBuffer full. Move command ignored. %i", CmdBuffResp);
+    }
+    std::string reply = CmdBuffer.print();
+    LOGF_INFO("-RingBuffer: %s", reply.c_str());
+
+    //SendCommand(MOVE_NS_CMD, dir, command);
     waitingOnSerialResponse = false;
   
     return true;
@@ -657,8 +668,8 @@ bool HASSTelescope::ReadScopeStatus()
  {
     LOGF_INFO("-MoveWE(): dir: %i, TelescopeMotionCommand: %i", dir, command);
     std::string theRingBuffer = CmdBuffer.print();
-    LOGF_INFO("-RingBuffer: %i", theRingBuffer);
-    SendCommand(MOVE_WE_CMD, dir, command);
+    LOGF_INFO("-RingBuffer: %s", theRingBuffer.c_str());
+    //SendCommand(MOVE_WE_CMD, dir, command);
     waitingOnSerialResponse = false;
     return true;
  }
@@ -689,6 +700,11 @@ void HASSTelescope::TimerHit()
     } else {
         //LOGF_INFO("not (IsConnected ). No action.", "");
     }
+
+    // dequeue an an item from the ring buffer
+    char CmdBuffValue = CmdBuffer.dequeueValue();
+    std::string theRingBuffer = CmdBuffer.print();
+    LOGF_INFO("-RingBuffer: %s", theRingBuffer.c_str());
 
     SetTimer(POLLMS);
 }
